@@ -1,0 +1,306 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Libreguard.Vpn.Linux</RootNamespace>
+    <AssemblyName>libreguard-vpn-linux</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+    <PublishSingleFile>false</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>linux-x64</RuntimeIdentifier>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <DockerfileContext>.</DockerfileContext>
+    <GeneratedAppSettingsFile>$(IntermediateOutputPath)generated\appsettings.json</GeneratedAppSettingsFile>
+    <AppVersion Condition="'$(AppVersion)' == ''">Linux/1.1.17</AppVersion>
+  </PropertyGroup>
+
+  <UsingTask TaskName="ResolveGoogleOAuthClientId" TaskFactory="RoslynCodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <ExplicitClientId ParameterType="System.String" Required="false" />
+      <PrimaryClientId ParameterType="System.String" Required="false" />
+      <OAuthConfig ParameterType="System.String" Required="false" />
+      <OAuthConfigFallback ParameterType="System.String" Required="false" />
+      <AuthenticationGoogleClientId ParameterType="System.String" Required="false" />
+      <GoogleClientId ParameterType="System.String" Required="false" />
+      <LibreGuardGoogleDesktopClientId ParameterType="System.String" Required="false" />
+      <GoogleDesktopClientId ParameterType="System.String" Required="false" />
+      <GoogleNativeClientId ParameterType="System.String" Required="false" />
+      <GoogleWindowsClientId ParameterType="System.String" Required="false" />
+      <ClientId ParameterType="System.String" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System" />
+      <Using Namespace="System.IO" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        ClientId = FirstNonEmpty(
+            ExplicitClientId,
+            LibreGuardGoogleDesktopClientId,
+            GoogleDesktopClientId,
+            GoogleNativeClientId,
+            GoogleWindowsClientId);
+        if (string.IsNullOrWhiteSpace(ClientId))
+        {
+            ClientId = ResolveOAuthConfig(FirstNonEmpty(OAuthConfig, OAuthConfigFallback));
+        }
+
+        if (string.IsNullOrWhiteSpace(ClientId))
+        {
+            ClientId = FirstNonEmpty(
+                PrimaryClientId,
+                AuthenticationGoogleClientId,
+                GoogleClientId);
+        }
+
+        ClientId = string.IsNullOrWhiteSpace(ClientId) ? string.Empty : ClientId.Trim();
+
+        static string FirstNonEmpty(params string[] values)
+        {
+            foreach (var value in values)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value.Trim();
+                }
+            }
+
+            return string.Empty;
+        }
+
+        static string ResolveOAuthConfig(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var trimmed = value.Trim();
+            if (LooksLikeGoogleClientId(trimmed))
+            {
+                return trimmed;
+            }
+
+            var expandedPath = Environment.ExpandEnvironmentVariables(trimmed);
+            if (File.Exists(expandedPath))
+            {
+                try
+                {
+                    return ExtractClientIdFromJson(File.ReadAllText(expandedPath));
+                }
+                catch
+                {
+                    return string.Empty;
+                }
+            }
+
+            return ExtractClientIdFromJson(trimmed);
+        }
+
+        static string ExtractClientIdFromJson(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return string.Empty;
+            }
+
+            try
+            {
+                return FirstNonEmpty(
+                    FindJsonStringValue(FindJsonObject(json, "installed"), "client_id"),
+                    FindJsonStringValue(FindJsonObject(json, "web"), "client_id"));
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
+
+        static string FindJsonObject(string json, string key)
+        {
+            var keyPattern = "\"" + key + "\"";
+            var keyIndex = json.IndexOf(keyPattern, StringComparison.OrdinalIgnoreCase);
+            if (keyIndex < 0)
+            {
+                return string.Empty;
+            }
+
+            var colonIndex = json.IndexOf(':', keyIndex + keyPattern.Length);
+            if (colonIndex < 0)
+            {
+                return string.Empty;
+            }
+
+            var objectStart = json.IndexOf('{', colonIndex + 1);
+            if (objectStart < 0)
+            {
+                return string.Empty;
+            }
+
+            var depth = 0;
+            var inString = false;
+            for (var index = objectStart; index < json.Length; index++)
+            {
+                var ch = json[index];
+                if (ch == '"' && (index == 0 || json[index - 1] != '\\'))
+                {
+                    inString = !inString;
+                    continue;
+                }
+
+                if (inString)
+                {
+                    continue;
+                }
+
+                if (ch == '{')
+                {
+                    depth++;
+                }
+                else if (ch == '}')
+                {
+                    depth--;
+                    if (depth == 0)
+                    {
+                        return json.Substring(objectStart, index - objectStart + 1);
+                    }
+                }
+            }
+
+            return string.Empty;
+        }
+
+        static string FindJsonStringValue(string json, string key)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return string.Empty;
+            }
+
+            var keyPattern = "\"" + key + "\"";
+            var keyIndex = json.IndexOf(keyPattern, StringComparison.OrdinalIgnoreCase);
+            if (keyIndex < 0)
+            {
+                return string.Empty;
+            }
+
+            var colonIndex = json.IndexOf(':', keyIndex + keyPattern.Length);
+            if (colonIndex < 0)
+            {
+                return string.Empty;
+            }
+
+            var valueStart = colonIndex + 1;
+            while (valueStart < json.Length && char.IsWhiteSpace(json[valueStart]))
+            {
+                valueStart++;
+            }
+
+            if (valueStart >= json.Length || json[valueStart] != '"')
+            {
+                return string.Empty;
+            }
+
+            valueStart++;
+            var valueEnd = valueStart;
+            while (valueEnd < json.Length)
+            {
+                if (json[valueEnd] == '"' && (valueEnd == valueStart || json[valueEnd - 1] != '\\'))
+                {
+                    break;
+                }
+
+                valueEnd++;
+            }
+
+            return valueEnd < json.Length ? json.Substring(valueStart, valueEnd - valueStart).Trim() : string.Empty;
+        }
+
+        static bool LooksLikeGoogleClientId(string value)
+            => value.EndsWith(".apps.googleusercontent.com", StringComparison.OrdinalIgnoreCase);
+      ]]></Code>
+    </Task>
+  </UsingTask>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.0.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.5" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
+    <PackageReference Include="QRCoder" Version="1.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="third_party\Avalonia.Controls.WebView\src\Avalonia.Controls.WebView\Avalonia.Controls.WebView.csproj" />
+    <Compile Remove="third_party\Avalonia.Controls.WebView\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="$(GeneratedAppSettingsFile)" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+    <None Include="install-linux-privileges.sh" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="packaging\linux\helpers\libreguard-ikev2-route-repair" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="packaging\linux\helpers\libreguard-ipv6-leak-protection" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="packaging\linux\dispatcher\90-libreguard-vpn-lifecycle" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="packaging\linux\polkit\net.libreguard.vpn.linux.repair-ikev2-routing.policy" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <AvaloniaResource Include="Resources\LibreGuard_logo.png" />
+    <AvaloniaResource Include="Resources\LibreGuard_logo_login_rounded12.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="tests\**\*.cs" />
+    <None Remove="tests\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="artifacts\**\*.cs" />
+    <None Remove="artifacts\**\*" />
+  </ItemGroup>
+
+  <Target Name="GenerateAppSettings" BeforeTargets="BeforeBuild">
+    <ResolveGoogleOAuthClientId
+      ExplicitClientId="$(InjectedGoogleClientId)"
+      PrimaryClientId="$(LIBREGUARD_GOOGLE_CLIENT_ID)"
+      OAuthConfig="$(LIBREGUARD_GOOGLE_OAUTH_CONFIG)"
+      OAuthConfigFallback="$(GOOGLE_OAUTH_CONFIG)"
+      AuthenticationGoogleClientId="$(Authentication__Google__ClientId)"
+      GoogleClientId="$(GOOGLE_CLIENT_ID)"
+      LibreGuardGoogleDesktopClientId="$(LIBREGUARD_GOOGLE_DESKTOP_CLIENT_ID)"
+      GoogleDesktopClientId="$(GOOGLE_DESKTOP_CLIENT_ID)"
+      GoogleNativeClientId="$(GOOGLE_NATIVE_CLIENT_ID)"
+      GoogleWindowsClientId="$(GOOGLE_WINDOWS_CLIENT_ID)">
+      <Output TaskParameter="ClientId" PropertyName="InjectedGoogleClientId" />
+    </ResolveGoogleOAuthClientId>
+    <Error
+      Condition="'$(InjectedGoogleClientId)' == '' and '$(Configuration)' == 'Release' and '$(AllowMissingGoogleOAuthClientId)' != 'true'"
+      Text="Google OAuth client ID is required for Release build-time injection. Set LIBREGUARD_GOOGLE_OAUTH_CONFIG, GOOGLE_OAUTH_CONFIG, LIBREGUARD_GOOGLE_DESKTOP_CLIENT_ID, GOOGLE_DESKTOP_CLIENT_ID, GOOGLE_NATIVE_CLIENT_ID, GOOGLE_WINDOWS_CLIENT_ID, LIBREGUARD_GOOGLE_CLIENT_ID, Authentication__Google__ClientId, or GOOGLE_CLIENT_ID before publishing. GOOGLE_WEB_CLIENT_ID and GOOGLE_ANDROID_CLIENT_ID are intentionally not used directly; web client IDs should be provided through LIBREGUARD_GOOGLE_OAUTH_CONFIG/GOOGLE_OAUTH_CONFIG or an explicit generic override. Pass /p:AllowMissingGoogleOAuthClientId=true only for CI/builds that intentionally do not produce a runnable OAuth artifact." />
+    <Warning
+      Condition="'$(InjectedGoogleClientId)' == ''"
+      Text="Google OAuth client ID was not provided for build-time injection. The build will continue with an empty OAuth client ID. Set LIBREGUARD_GOOGLE_OAUTH_CONFIG, GOOGLE_OAUTH_CONFIG, LIBREGUARD_GOOGLE_DESKTOP_CLIENT_ID, GOOGLE_DESKTOP_CLIENT_ID, GOOGLE_NATIVE_CLIENT_ID, GOOGLE_WINDOWS_CLIENT_ID, LIBREGUARD_GOOGLE_CLIENT_ID, Authentication__Google__ClientId, or GOOGLE_CLIENT_ID before building, or pass /p:InjectedGoogleClientId=... explicitly." />
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName('$(GeneratedAppSettingsFile)'))" />
+    <WriteLinesToFile
+      File="$(GeneratedAppSettingsFile)"
+      Overwrite="true"
+      Lines=
+        '{
+  "AppVersion": "$(AppVersion)",
+  "Backend": {
+    "BaseUrl": "https://management.libreguard.net"
+  },
+  "OAuth": {
+    "GoogleClientId": "$(InjectedGoogleClientId)"
+  },
+  "Vpn": {
+    "CertificatePollingSeconds": 2,
+    "CertificatePollingAttempts": 40
+  }
+}' />
+  </Target>
+
+</Project>

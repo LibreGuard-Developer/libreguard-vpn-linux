@@ -1,0 +1,108 @@
+#!/bin/sh
+set -e
+
+DESKTOP_ENTRY_SOURCE="/usr/share/applications/libreguard-vpn-linux.desktop"
+MANAGED_MARKER="X-LibreGuard-ManagedShortcut=true"
+LEAK_PROTECTION_HELPER="/usr/libexec/libreguard-vpn-linux/libreguard-ipv6-leak-protection"
+
+cleanup_stale_leak_protection() {
+    [ -x "$LEAK_PROTECTION_HELPER" ] || return 0
+
+    # A package upgrade can replace the app while a previous build left its
+    # transient rule or hosts-file marker behind. The helper refuses cleanup
+    # when a LibreGuard VPN is active, so this is safe during an upgrade.
+    "$LEAK_PROTECTION_HELPER" remove >/dev/null 2>&1 || true
+}
+
+update_desktop_integrations() {
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database /usr/share/applications || true
+    fi
+
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+        gtk-update-icon-cache -q /usr/share/icons/hicolor || true
+    fi
+}
+
+desktop_dir_for_user() {
+    user_name="$1"
+    home_dir="$2"
+
+    if command -v runuser >/dev/null 2>&1 && command -v xdg-user-dir >/dev/null 2>&1; then
+        desktop_dir="$(runuser -u "$user_name" -- xdg-user-dir DESKTOP 2>/dev/null || true)"
+        if [ -n "$desktop_dir" ]; then
+            printf '%s\n' "$desktop_dir"
+            return
+        fi
+    fi
+
+    printf '%s/Desktop\n' "$home_dir"
+}
+
+shortcut_is_managed() {
+    shortcut_path="$1"
+
+    grep -q "^$MANAGED_MARKER\$" "$shortcut_path" 2>/dev/null \
+        || {
+            grep -q '^Name=LibreGuard VPN$' "$shortcut_path" 2>/dev/null \
+                && grep -q '^Exec=/opt/libreguard-vpn-linux/libreguard-vpn-linux$' "$shortcut_path" 2>/dev/null
+        }
+}
+
+install_desktop_shortcut_for_user() {
+    user_name="$1"
+    home_dir="$2"
+    desktop_dir="$(desktop_dir_for_user "$user_name" "$home_dir")"
+    shortcut_path="$desktop_dir/LibreGuard VPN.desktop"
+
+    [ -d "$desktop_dir" ] || return 0
+    [ -f "$DESKTOP_ENTRY_SOURCE" ] || return 0
+
+    if [ -f "$shortcut_path" ] && ! shortcut_is_managed "$shortcut_path"; then
+        return 0
+    fi
+
+    tmp_path="$(mktemp)"
+    cp "$DESKTOP_ENTRY_SOURCE" "$tmp_path"
+    printf '\n%s\n' "$MANAGED_MARKER" >> "$tmp_path"
+    install -o "$user_name" -g "$user_name" -m 0755 "$tmp_path" "$shortcut_path"
+    rm -f "$tmp_path"
+}
+
+install_desktop_shortcuts() {
+    [ -f "$DESKTOP_ENTRY_SOURCE" ] || return 0
+
+    while IFS=: read -r user_name _ uid gid _ home_dir shell_path; do
+        [ "$uid" -ge 1000 ] 2>/dev/null || continue
+        [ "$uid" -ne 65534 ] 2>/dev/null || continue
+        [ -d "$home_dir" ] || continue
+        case "$shell_path" in
+            */nologin|*/false)
+                continue
+                ;;
+        esac
+
+        install_desktop_shortcut_for_user "$user_name" "$home_dir"
+    done < /etc/passwd
+}
+
+repair_netplan_permissions() {
+    netplan_file="/etc/netplan/01-network-manager-all.yaml"
+    [ -e "$netplan_file" ] || return 0
+
+    if ! chown root:root "$netplan_file" || ! chmod 0600 "$netplan_file"; then
+        echo "error: could not secure $netplan_file (expected root:root, mode 0600)" >&2
+        return 1
+    fi
+}
+
+case "${1:-configure}" in
+    configure|triggered)
+        cleanup_stale_leak_protection
+        repair_netplan_permissions
+        update_desktop_integrations
+        install_desktop_shortcuts
+        ;;
+esac
+
+exit 0

@@ -1,0 +1,7 @@
+; Fedora NetworkManager 1.56 launches charon-nm as ipsec_t with only
+; CAP_NET_ADMIN. LibreGuard grants UID 0 a temporary, path-specific POSIX ACL
+; during activation; these rules let SELinux honor that narrowly scoped DAC
+; access without making any credential group- or world-readable.
+(allow ipsec_t user_home_dir_t (dir (getattr search)))
+(allow ipsec_t home_cert_t (dir (getattr search)))
+(allow ipsec_t home_cert_t (file (getattr open read)))

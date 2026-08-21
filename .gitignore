@@ -1,0 +1,17 @@
+bin/
+obj/
+.vs/
+artifacts/
+TestResults/
+*.dmp
+*.log
+.security-audit/
+*.user
+*.rsuser
+*.suo
+*.userosscache
+*.sln.docstates
+
+tests/**/bin/
+tests/**/obj/
+appsettings.json

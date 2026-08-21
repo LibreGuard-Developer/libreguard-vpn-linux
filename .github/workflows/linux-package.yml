@@ -1,0 +1,95 @@
+name: Linux package
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-test-package:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@83c0c1a6c843e2d7e6b14cc940a4a8c77243829b
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore
+
+      - name: Test
+        run: dotnet test --no-build
+
+      - name: Check vulnerable packages
+        run: dotnet list package --vulnerable --include-transitive
+
+      - name: Scan source and Git history for high-confidence secrets
+        run: bash ./scripts/security-scan.sh
+
+      - name: Build Debian and RPM packages
+        env:
+          ALLOW_MISSING_GOOGLE_OAUTH_CLIENT_ID: "1"
+        run: bash ./packaging/linux/build-packages.sh --format all
+
+      - name: Scan package artifacts for high-confidence secrets
+        run: bash ./scripts/security-scan.sh artifacts
+
+      - name: Debian install and WebView smoke test
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends desktop-file-utils xvfb xauth
+          bash ./packaging/linux/smoke-deb.sh
+
+      - name: RPM structural smoke test
+        run: bash ./packaging/linux/smoke-rpm.sh
+
+      - name: Upload Linux packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: libreguard-vpn-linux-packages
+          path: |
+            artifacts/*.deb
+            artifacts/*.rpm
+          if-no-files-found: error
+
+  fedora-rpm-smoke:
+    needs: build-test-package
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        fedora:
+          - 43
+          - 44
+    container:
+      image: fedora:${{ matrix.fedora }}
+
+    steps:
+      - name: Prepare Fedora container
+        run: dnf install -y cpio desktop-file-utils git mesa-dri-drivers rpm tar xauth xorg-x11-server-Xvfb
+
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Download Linux packages
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: libreguard-vpn-linux-packages
+          path: artifacts
+
+      - name: Install, exercise, and remove RPM
+        run: bash ./packaging/linux/smoke-rpm.sh

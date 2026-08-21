@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=LibreGuard VPN
+Comment=LibreGuard VPN client for Linux
+Exec=/opt/libreguard-vpn-linux/libreguard-vpn-linux
+Icon=/usr/share/icons/hicolor/256x256/apps/libreguard-vpn-linux.png
+Terminal=false
+Categories=Network;Security;
+StartupNotify=true
+StartupWMClass=libreguard-vpn-linux

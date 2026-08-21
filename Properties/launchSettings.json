@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "libreguard-vpn-linux": {
+      "commandName": "Project"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}

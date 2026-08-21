@@ -1,0 +1,10 @@
+Package: libreguard-vpn-linux
+Version: 1.1.17
+Section: net
+Priority: optional
+Architecture: amd64
+Maintainer: LibreGuard <support@libreguard.net>
+Depends: network-manager, network-manager-openvpn, network-manager-strongswan, strongswan, openssl, iproute2, pkexec, policykit-1 | polkitd, libsecret-tools, gnome-keyring, libpam-gnome-keyring, libx11-6, libxtst6, libice6, libsm6, libfontconfig1, libxkbcommon0, libxcb1, libwebkit2gtk-4.1-0, fonts-noto-color-emoji, xdg-utils
+Recommends: libwpewebkit-2.0-1
+Description: LibreGuard VPN client for Linux
+ Native desktop VPN client supporting IKEv2/IPSec and OpenVPN through NetworkManager.

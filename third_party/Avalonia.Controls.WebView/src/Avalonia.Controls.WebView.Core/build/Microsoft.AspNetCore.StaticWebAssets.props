@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <_AvaloniaWebViewWebAssetsFolder>$([System.IO.Path]::GetFullPath($(MSBuildThisFileDirectory)../staticwebassets/))</_AvaloniaWebViewWebAssetsFolder>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(ShouldIncludeAvaloniaStaticAssets)' == 'True'">
+    <!-- This file repricates how StaticWebAsset SDK generates static web assets for Blazor nuget packages, which we don't use here. -->
+    <_AvaloniaWebViewAssets Include="$(_AvaloniaWebViewWebAssetsFolder)av-webview.mjs" />
+    <StaticWebAsset Include="@(_AvaloniaWebViewAssets)">
+      <SourceType>Package</SourceType>
+      <SourceId>Avalonia.Controls.WebView</SourceId>
+      <ContentRoot>$(_AvaloniaWebViewWebAssetsFolder)</ContentRoot>
+      <BasePath>/</BasePath>
+      <RelativePath>$(WasmRuntimeAssetsLocation)/%(FileName)%(Extension)</RelativePath>
+      <AssetKind>All</AssetKind>
+      <AssetMode>All</AssetMode>
+      <AssetRole>Primary</AssetRole>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <OriginalItemSpec>$(_AvaloniaWebViewWebAssetsFolder)%(FileName)%(Extension)</OriginalItemSpec>
+    </StaticWebAsset>
+  </ItemGroup>
+</Project>

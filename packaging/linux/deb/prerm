@@ -1,0 +1,112 @@
+#!/bin/sh
+set -e
+
+HELPER=/usr/libexec/libreguard-vpn-linux/libreguard-ipv6-leak-protection
+DOH_CANARY_LINE='0.0.0.0 use-application-dns.net # LibreGuard VPN DoH canary'
+BROWSER_DOH_POLICY_NAME=libreguard-dns-over-https.json
+BROWSER_DOH_POLICY_CONTENT='{"DnsOverHttpsMode":"off"}'
+
+has_active_libreguard_vpn() {
+    command -v nmcli >/dev/null 2>&1 || return 2
+    if ! active_connections="$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null)"; then
+        return 2
+    fi
+
+    printf '%s\n' "$active_connections" \
+        | grep -Eq '^(libreguard-openvpn-|libreguard-ikev2-).*:vpn$'
+}
+
+has_ipv6_protection() {
+    command -v ip >/dev/null 2>&1 || return 2
+    if ! ipv6_rules="$(ip -N -6 rule show 2>/dev/null)"; then
+        return 2
+    fi
+    if ! ipv6_routes="$(ip -6 route show table 42653 2>/dev/null)"; then
+        return 2
+    fi
+
+    if printf '%s\n' "$ipv6_rules" \
+        | grep -Eq '^[[:space:]]*(1|10000):[[:space:]]+from[[:space:]]+all([[:space:]]+to[[:space:]]+(all|::/0))?[[:space:]]+lookup[[:space:]]+42653[[:space:]]*$'; then
+        return 0
+    fi
+    if printf '%s\n' "$ipv6_routes" \
+        | grep -Eq '^[[:space:]]*prohibit[[:space:]]+(default|::/0)([[:space:]]+dev[[:space:]]+lo)?[[:space:]]+metric[[:space:]]+1([[:space:]]+pref[[:space:]]+(low|medium|high))?[[:space:]]*$'; then
+        return 0
+    fi
+
+    return 1
+}
+
+has_doh_canary() {
+    [ -f /etc/hosts ] || return 2
+    grep -Fqx "$DOH_CANARY_LINE" /etc/hosts
+}
+
+has_browser_doh_policy() {
+    for policy_dir in \
+        /etc/opt/chrome/policies/managed \
+        /etc/chromium/policies/managed \
+        /etc/chromium-browser/policies/managed \
+        /etc/brave/policies/managed \
+        /etc/opt/edge/policies/managed; do
+        policy_file="$policy_dir/$BROWSER_DOH_POLICY_NAME"
+        [ -f "$policy_file" ] || continue
+        compact_policy="$(tr -d '[:space:]' < "$policy_file")"
+        [ "$compact_policy" = "$BROWSER_DOH_POLICY_CONTENT" ] && return 0
+    done
+    return 1
+}
+
+case "${1:-remove}" in
+    remove|deconfigure)
+        ipv6_status=0
+        canary_status=0
+        browser_policy_status=0
+        has_ipv6_protection || ipv6_status=$?
+        has_doh_canary || canary_status=$?
+        has_browser_doh_policy || browser_policy_status=$?
+        if [ "$ipv6_status" -eq 0 ] || [ "$canary_status" -eq 0 ] || [ "$browser_policy_status" -eq 0 ]; then
+            protection_status=0
+        elif [ "$ipv6_status" -eq 2 ] || [ "$canary_status" -eq 2 ]; then
+            protection_status=2
+        else
+            protection_status=1
+        fi
+        case "$protection_status" in
+            1)
+                exit 0
+                ;;
+            2)
+                echo "LibreGuard could not inspect its IPv6 leak-protection state; package removal was stopped." >&2
+                exit 1
+                ;;
+        esac
+
+        active_status=0
+        has_active_libreguard_vpn || active_status=$?
+        case "$active_status" in
+            0)
+                echo "LibreGuard IPv6 leak protection remains active because a LibreGuard VPN is still connected." >&2
+                echo "Disconnect LibreGuard before removing the package." >&2
+                exit 1
+                ;;
+            1)
+                if [ ! -x "$HELPER" ]; then
+                    echo "LibreGuard cannot safely remove the package because its IPv6 cleanup helper is missing." >&2
+                    exit 1
+                fi
+                if ! "$HELPER" remove; then
+                    echo "LibreGuard could not remove its transient IPv6 leak-protection state; package removal was stopped." >&2
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "LibreGuard could not prove that all VPN connections are down; IPv6 leak protection was left active." >&2
+                echo "Package removal was stopped so the cleanup helper remains available." >&2
+                exit 1
+                ;;
+        esac
+        ;;
+esac
+
+exit 0

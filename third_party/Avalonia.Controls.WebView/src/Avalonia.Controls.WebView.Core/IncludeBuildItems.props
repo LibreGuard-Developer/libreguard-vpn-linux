@@ -1,0 +1,27 @@
+<Project>
+
+  <ItemGroup Label="Common Group">
+    <PackageReference Include="Avalonia" Version="$(AvaloniaVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Label="Android Group" Condition=" $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android' ">
+    <PackageReference Include="Avalonia.Android" Version="$(AvaloniaVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'browser'">
+    <PackageReference Include="Avalonia.Browser" Version="$(AvaloniaVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Label="Browser Group">
+    <!-- See https://github.com/dotnet/sdk/blob/9d4d2c4ca35b0856af7df63d6a38b3259aa6917c/src/StaticWebAssetsSdk/Targets/Microsoft.NET.Sdk.StaticWebAssets.Pack.targets#L64-L66 -->
+    <Content Include="$(MSBuildThisFileDirectory)/build/Microsoft.AspNetCore.StaticWebAssets.props">
+      <Pack>true</Pack>
+      <PackagePath>build/</PackagePath>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)/staticwebassets/**/*.mjs">
+      <Pack>true</Pack>
+      <PackagePath>staticwebassets/</PackagePath>
+    </Content>
+  </ItemGroup>
+
+</Project>

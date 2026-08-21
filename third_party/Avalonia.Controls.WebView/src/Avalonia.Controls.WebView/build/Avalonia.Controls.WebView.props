@@ -1,0 +1,4 @@
+<Project>
+  <Import Project="../build/Microsoft.AspNetCore.StaticWebAssets.props"
+          Condition="Exists('../build/Microsoft.AspNetCore.StaticWebAssets.props')"/>
+</Project>

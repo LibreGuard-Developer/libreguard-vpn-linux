@@ -1,0 +1,68 @@
+#!/bin/sh
+set -e
+
+MANAGED_MARKER="X-LibreGuard-ManagedShortcut=true"
+
+update_desktop_integrations() {
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database /usr/share/applications || true
+    fi
+
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+        gtk-update-icon-cache -q /usr/share/icons/hicolor || true
+    fi
+}
+
+desktop_dir_for_user() {
+    user_name="$1"
+    home_dir="$2"
+
+    if command -v runuser >/dev/null 2>&1 && command -v xdg-user-dir >/dev/null 2>&1; then
+        desktop_dir="$(runuser -u "$user_name" -- xdg-user-dir DESKTOP 2>/dev/null || true)"
+        if [ -n "$desktop_dir" ]; then
+            printf '%s\n' "$desktop_dir"
+            return
+        fi
+    fi
+
+    printf '%s/Desktop\n' "$home_dir"
+}
+
+shortcut_is_managed() {
+    shortcut_path="$1"
+
+    grep -q "^$MANAGED_MARKER\$" "$shortcut_path" 2>/dev/null \
+        || {
+            grep -q '^Name=LibreGuard VPN$' "$shortcut_path" 2>/dev/null \
+                && grep -q '^Exec=/opt/libreguard-vpn-linux/libreguard-vpn-linux$' "$shortcut_path" 2>/dev/null
+        }
+}
+
+remove_desktop_shortcuts() {
+    while IFS=: read -r user_name _ uid _ _ home_dir shell_path; do
+        [ "$uid" -ge 1000 ] 2>/dev/null || continue
+        [ "$uid" -ne 65534 ] 2>/dev/null || continue
+        [ -d "$home_dir" ] || continue
+        case "$shell_path" in
+            */nologin|*/false)
+                continue
+                ;;
+        esac
+
+        desktop_dir="$(desktop_dir_for_user "$user_name" "$home_dir")"
+        shortcut_path="$desktop_dir/LibreGuard VPN.desktop"
+        if [ -f "$shortcut_path" ] && shortcut_is_managed "$shortcut_path"; then
+            rm -f "$shortcut_path"
+        fi
+    done < /etc/passwd
+}
+
+update_desktop_integrations
+
+case "${1:-remove}" in
+    purge)
+        remove_desktop_shortcuts
+        ;;
+esac
+
+exit 0

@@ -1,0 +1,40 @@
+#!/bin/sh
+set -eu
+
+IP_BIN=/usr/sbin/ip
+if [ ! -x "$IP_BIN" ]; then
+    IP_BIN=/sbin/ip
+fi
+
+if [ -z "${IP_BIN:-}" ] || [ ! -x "$IP_BIN" ]; then
+    echo "ip command not found." >&2
+    exit 127
+fi
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "LibreGuard IKEv2 route repair must run as root." >&2
+    exit 126
+fi
+
+has_unconditional_table_220_rule() {
+    "$IP_BIN" rule show \
+        | grep -Eq '^[[:space:]]*220:[[:space:]]+from[[:space:]]+all[[:space:]]+lookup[[:space:]]+220[[:space:]]*$'
+}
+
+# A crashed or interrupted older client can leave duplicate rules behind.
+# Remove every exact match while preserving strongSwan's marked rule and all
+# unrelated policy routing entries.
+removed_rules=0
+while has_unconditional_table_220_rule; do
+    removed_rules=$((removed_rules + 1))
+    if [ "$removed_rules" -gt 32 ]; then
+        echo "LibreGuard found too many unconditional strongSwan table 220 rules; refusing unbounded cleanup." >&2
+        exit 1
+    fi
+    "$IP_BIN" rule del pref 220 from all lookup 220
+done
+
+if has_unconditional_table_220_rule; then
+    echo "LibreGuard could not remove the unconditional strongSwan table 220 rule." >&2
+    exit 1
+fi

@@ -1,0 +1,413 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Libreguard.Vpn.Linux.Controls"
+             x:Class="Libreguard.Vpn.Linux.App"
+             RequestedThemeVariant="Default">
+  <Application.Resources>
+    <Color x:Key="PrimaryColor">#1570EF</Color>
+    <Color x:Key="PrimaryForegroundColor">#FFFFFF</Color>
+    <Color x:Key="BackgroundColor">#FFFFFF</Color>
+    <Color x:Key="ForegroundColor">#1A1A1A</Color>
+    <Color x:Key="CardColor">#F8FAFC</Color>
+    <Color x:Key="SecondaryColor">#E2E8F0</Color>
+    <Color x:Key="MutedColor">#F1F5F9</Color>
+    <Color x:Key="MutedForegroundColor">#64748B</Color>
+    <Color x:Key="BorderColor">#261570EF</Color>
+    <Color x:Key="DestructiveColor">#EF4444</Color>
+    <Color x:Key="WarningColor">#F59E0B</Color>
+    <Color x:Key="StatusConnectedColor">#10B981</Color>
+    <Color x:Key="StatusConnectingColor">#F59E0B</Color>
+    <Color x:Key="StatusDisconnectedColor">#94A3B8</Color>
+    <FontFamily x:Key="IconFontFamily">Noto Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Sans Symbols 2, Symbola, Sans</FontFamily>
+
+    <SolidColorBrush x:Key="PrimaryBrush" Color="{StaticResource PrimaryColor}" />
+    <SolidColorBrush x:Key="PrimaryForegroundBrush" Color="{StaticResource PrimaryForegroundColor}" />
+    <SolidColorBrush x:Key="BackgroundBrush" Color="{StaticResource BackgroundColor}" />
+    <SolidColorBrush x:Key="ForegroundBrush" Color="{StaticResource ForegroundColor}" />
+    <SolidColorBrush x:Key="CardBrush" Color="{StaticResource CardColor}" />
+    <SolidColorBrush x:Key="SecondaryBrush" Color="{StaticResource SecondaryColor}" />
+    <SolidColorBrush x:Key="MutedBrush" Color="{StaticResource MutedColor}" />
+    <SolidColorBrush x:Key="MutedForegroundBrush" Color="{StaticResource MutedForegroundColor}" />
+    <SolidColorBrush x:Key="BorderBrush" Color="{StaticResource BorderColor}" />
+    <SolidColorBrush x:Key="DestructiveBrush" Color="{StaticResource DestructiveColor}" />
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+    <SolidColorBrush x:Key="StatusConnectedBrush" Color="{StaticResource StatusConnectedColor}" />
+    <SolidColorBrush x:Key="StatusConnectingBrush" Color="{StaticResource StatusConnectingColor}" />
+    <SolidColorBrush x:Key="StatusDisconnectedBrush" Color="{StaticResource StatusDisconnectedColor}" />
+    <SolidColorBrush x:Key="PrimaryLightBrush" Color="#1A1570EF" />
+    <SolidColorBrush x:Key="PrimaryMediumBrush" Color="#331570EF" />
+    <SolidColorBrush x:Key="DestructiveLightBrush" Color="#1AEF4444" />
+    <SolidColorBrush x:Key="StatusConnectedLightBrush" Color="#1A10B981" />
+    <SolidColorBrush x:Key="StatusConnectingLightBrush" Color="#1AF59E0B" />
+    <SolidColorBrush x:Key="StatusDisconnectedLightBrush" Color="#1A94A3B8" />
+    <SolidColorBrush x:Key="ConnectionIdleBrush" Color="{StaticResource StatusDisconnectedColor}" />
+    <SolidColorBrush x:Key="ConnectionIdleLightBrush" Color="#1A94A3B8" />
+    <SolidColorBrush x:Key="ConnectionConnectingBrush" Color="{StaticResource StatusConnectingColor}" />
+    <SolidColorBrush x:Key="ConnectionConnectingLightBrush" Color="#1AF59E0B" />
+    <SolidColorBrush x:Key="ConnectionConnectedBrush" Color="{StaticResource StatusConnectedColor}" />
+    <SolidColorBrush x:Key="ConnectionConnectedLightBrush" Color="#1A10B981" />
+    <SolidColorBrush x:Key="ConnectionDisconnectingBrush" Color="#64748B" />
+    <SolidColorBrush x:Key="ConnectionDisconnectingLightBrush" Color="#1A64748B" />
+
+    <LinearGradientBrush x:Key="BrandPanelBrush" StartPoint="0,0" EndPoint="1,1">
+      <GradientStop Color="#191570EF" Offset="0" />
+      <GradientStop Color="#0D1570EF" Offset="1" />
+    </LinearGradientBrush>
+
+    <LinearGradientBrush x:Key="UpgradeBrush" StartPoint="0,0" EndPoint="1,1">
+      <GradientStop Color="#101570EF" Offset="0" />
+      <GradientStop Color="#00FFFFFF" Offset="1" />
+    </LinearGradientBrush>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+
+    <Style Selector="Window">
+      <Setter Property="Background" Value="{DynamicResource BackgroundBrush}" />
+      <Setter Property="FontFamily" Value="Segoe UI, Inter, Arial, Sans" />
+    </Style>
+
+    <Style Selector="TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+      <Setter Property="FontFamily" Value="Segoe UI, Inter, Arial, Sans" />
+    </Style>
+
+    <Style Selector="TextBlock.heading-xl">
+      <Setter Property="FontSize" Value="28" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="TextBlock.heading-large">
+      <Setter Property="FontSize" Value="24" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="TextBlock.heading">
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="TextBlock.subheading">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="Medium" />
+    </Style>
+
+    <Style Selector="TextBlock.body">
+      <Setter Property="FontSize" Value="14" />
+    </Style>
+
+    <Style Selector="TextBlock.muted">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Foreground" Value="{DynamicResource MutedForegroundBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.small-muted">
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="{DynamicResource MutedForegroundBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.large-value">
+      <Setter Property="FontSize" Value="28" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
+    </Style>
+
+    <Style Selector="TextBlock.brand">
+      <Setter Property="FontSize" Value="20" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+
+    <Style Selector="TextBlock.flag">
+      <Setter Property="FontFamily" Value="{StaticResource IconFontFamily}" />
+      <Setter Property="FontSize" Value="24" />
+    </Style>
+
+    <Style Selector="TextBox, ComboBox">
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+      <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="MinHeight" Value="44" />
+      <Setter Property="Padding" Value="16,12" />
+    </Style>
+
+    <Style Selector="TextBox.icon-field">
+      <Setter Property="Padding" Value="40,12,16,12" />
+    </Style>
+
+    <Style Selector="TextBox.password-field">
+      <Setter Property="Padding" Value="40,12,44,12" />
+    </Style>
+
+    <Style Selector="TextBox:focus, ComboBox:focus">
+      <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
+    </Style>
+
+    <Style Selector="Button">
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Padding" Value="16,12" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Cursor" Value="Hand" />
+      <Setter Property="controls:RippleBehavior.IsEnabled" Value="True" />
+      <Setter Property="Transitions">
+        <Transitions>
+          <DoubleTransition Property="Opacity" Duration="0:0:0.10" />
+        </Transitions>
+      </Setter>
+    </Style>
+
+    <Style Selector="Button:pointerover">
+      <Setter Property="Opacity" Value="0.9" />
+    </Style>
+
+    <Style Selector="Button:pressed">
+      <Setter Property="Opacity" Value="0.8" />
+    </Style>
+
+    <Style Selector="Button:disabled">
+      <Setter Property="Opacity" Value="0.5" />
+    </Style>
+
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryForegroundBrush}" />
+      <Setter Property="FontSize" Value="16" />
+      <Setter Property="Padding" Value="24,14" />
+    </Style>
+
+    <Style Selector="Button.primary-large">
+      <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryForegroundBrush}" />
+      <Setter Property="FontSize" Value="18" />
+      <Setter Property="Padding" Value="64,16" />
+    </Style>
+
+    <Style Selector="Button.secondary">
+      <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="Padding" Value="16,14" />
+    </Style>
+
+    <Style Selector="Button.secondary:pointerover">
+      <Setter Property="Background" Value="{DynamicResource MutedBrush}" />
+    </Style>
+
+    <Style Selector="Button.card-link">
+      <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Padding" Value="20" />
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="VerticalContentAlignment" Value="Stretch" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+    </Style>
+
+    <Style Selector="Button.card-link:pointerover">
+      <Setter Property="Background" Value="{DynamicResource MutedBrush}" />
+    </Style>
+
+    <Style Selector="Button.ghost">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource MutedForegroundBrush}" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Padding" Value="16,12" />
+    </Style>
+
+    <Style Selector="Button.ghost:pointerover">
+      <Setter Property="Background" Value="{DynamicResource MutedBrush}" />
+    </Style>
+
+    <Style Selector="Button.destructive">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource DestructiveBrush}" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+    </Style>
+
+    <Style Selector="Button.destructive:pointerover">
+      <Setter Property="Background" Value="{DynamicResource DestructiveLightBrush}" />
+    </Style>
+
+    <Style Selector="Button.link">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="FontWeight" Value="Normal" />
+    </Style>
+
+    <Style Selector="ToggleButton.nav">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource MutedForegroundBrush}" />
+      <Setter Property="HorizontalAlignment" Value="Stretch" />
+      <Setter Property="HorizontalContentAlignment" Value="Left" />
+      <Setter Property="Padding" Value="16,12" />
+      <Setter Property="Margin" Value="0,2" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="controls:RippleBehavior.IsEnabled" Value="True" />
+    </Style>
+
+    <Style Selector="ToggleButton.nav:pointerover">
+      <Setter Property="Background" Value="{DynamicResource MutedBrush}" />
+    </Style>
+
+    <Style Selector="ToggleButton.nav:checked">
+      <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryForegroundBrush}" />
+    </Style>
+
+    <Style Selector="ToggleButton.segment">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="controls:RippleBehavior.IsEnabled" Value="True" />
+    </Style>
+
+    <Style Selector="ToggleButton.segment:pointerover">
+      <Setter Property="Background" Value="{DynamicResource MutedBrush}" />
+    </Style>
+
+    <Style Selector="ToggleButton.segment:checked">
+      <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryForegroundBrush}" />
+    </Style>
+
+    <Style Selector="RadioButton.segment">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="{DynamicResource ForegroundBrush}" />
+      <Setter Property="Padding" Value="16,8" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="FontSize" Value="14" />
+      <Setter Property="FontWeight" Value="Medium" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Template">
+        <ControlTemplate>
+          <ContentPresenter x:Name="PART_ContentPresenter"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Content="{TemplateBinding Content}"
+                            ContentTemplate="{TemplateBinding ContentTemplate}"
+                            Foreground="{TemplateBinding Foreground}"
+                            Padding="{TemplateBinding Padding}"
+                            HorizontalContentAlignment="{TemplateBinding HorizontalContentAlignment}"
+                            VerticalContentAlignment="{TemplateBinding VerticalContentAlignment}" />
+        </ControlTemplate>
+      </Setter>
+      <Setter Property="controls:RippleBehavior.IsEnabled" Value="True" />
+    </Style>
+
+    <Style Selector="RadioButton.segment:pointerover">
+      <Setter Property="Background" Value="{DynamicResource MutedBrush}" />
+    </Style>
+
+    <Style Selector="RadioButton.segment:checked">
+      <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryForegroundBrush}" />
+    </Style>
+
+    <Style Selector="RadioButton.segment:checked TextBlock">
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryForegroundBrush}" />
+    </Style>
+
+    <Style Selector="Border.card">
+      <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Padding" Value="20" />
+    </Style>
+
+    <Style Selector="Border.card-large">
+      <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="16" />
+      <Setter Property="Padding" Value="32" />
+    </Style>
+
+    <Style Selector="Border.sidebar">
+      <Setter Property="Background" Value="{DynamicResource CardBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="0,0,1,0" />
+    </Style>
+
+    <Style Selector="Border.icon-badge">
+      <Setter Property="Width" Value="48" />
+      <Setter Property="Height" Value="48" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Background" Value="{DynamicResource PrimaryLightBrush}" />
+    </Style>
+
+    <Style Selector="Border.round-icon">
+      <Setter Property="Width" Value="80" />
+      <Setter Property="Height" Value="80" />
+      <Setter Property="CornerRadius" Value="40" />
+      <Setter Property="Background" Value="{DynamicResource PrimaryLightBrush}" />
+    </Style>
+
+    <Style Selector="Border.pro-badge">
+      <Setter Property="Background" Value="{DynamicResource PrimaryLightBrush}" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="4,1" />
+    </Style>
+
+    <Style Selector="Border.segment-shell">
+      <Setter Property="Background" Value="{DynamicResource MutedBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Padding" Value="4" />
+    </Style>
+
+    <Style Selector="Border.modal">
+      <Setter Property="Background" Value="{DynamicResource BackgroundBrush}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="16" />
+      <Setter Property="Padding" Value="32" />
+    </Style>
+
+    <Style Selector="Border.info-panel">
+      <Setter Property="Background" Value="{DynamicResource MutedBrush}" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Padding" Value="20" />
+    </Style>
+
+    <Style Selector="ProgressBar">
+      <Setter Property="Height" Value="12" />
+      <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}" />
+      <Setter Property="Background" Value="{DynamicResource SecondaryBrush}" />
+      <Setter Property="CornerRadius" Value="6" />
+    </Style>
+
+    <Style Selector="ListBox">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+    </Style>
+
+    <Style Selector="ListBoxItem">
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Margin" Value="0,0,0,10" />
+    </Style>
+  </Application.Styles>
+
+</Application>

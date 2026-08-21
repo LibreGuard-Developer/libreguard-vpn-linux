@@ -1,0 +1,61 @@
+#!/bin/sh
+set -eu
+
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+LC_ALL=C
+export PATH LC_ALL
+
+IPV6_HELPER=/usr/libexec/libreguard-vpn-linux/libreguard-ipv6-leak-protection
+IKEV2_ROUTE_REPAIR_HELPER=/usr/libexec/libreguard-vpn-linux/libreguard-ikev2-route-repair
+CONNECTION_ID_VALUE=${CONNECTION_ID:-}
+ACTION=${2:-}
+
+is_libreguard_vpn() {
+    case "$CONNECTION_ID_VALUE" in
+        libreguard-openvpn-*|libreguard-ikev2-*)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+is_libreguard_ikev2() {
+    case "$CONNECTION_ID_VALUE" in
+        libreguard-ikev2-*)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+is_libreguard_vpn || exit 0
+
+case "$ACTION" in
+    vpn-pre-up)
+        # pre-up dispatchers run as root and NetworkManager waits for them
+        # before reporting the VPN as active.  Do the normal IKEv2 route
+        # repair here so the desktop client never has to race the asynchronous
+        # vpn-up event or request elevation during a healthy connection.
+        "$IPV6_HELPER" install
+        if is_libreguard_ikev2; then
+            "$IKEV2_ROUTE_REPAIR_HELPER"
+        fi
+        exit 0
+        ;;
+    vpn-up)
+        # Keep an idempotent second pass for NetworkManager/strongSwan builds
+        # that finish installing policy rules after vpn-pre-up.
+        is_libreguard_ikev2 || exit 0
+        exec "$IKEV2_ROUTE_REPAIR_HELPER"
+        ;;
+    vpn-down)
+        exec "$IPV6_HELPER" remove
+        ;;
+    *)
+        exit 0
+        ;;
+esac

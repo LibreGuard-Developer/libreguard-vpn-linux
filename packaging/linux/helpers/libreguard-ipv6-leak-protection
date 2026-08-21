@@ -1,0 +1,479 @@
+#!/bin/sh
+set -eu
+
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+LC_ALL=C
+export PATH LC_ALL
+
+TABLE=42653
+PRIORITY=1
+LEGACY_PRIORITY=10000
+METRIC=1
+PROBE_ADDRESS=2606:4700:4700::1111
+HOSTS_FILE=/etc/hosts
+DOH_CANARY_HOST=use-application-dns.net
+DOH_CANARY_LINE='0.0.0.0 use-application-dns.net # LibreGuard VPN DoH canary'
+BROWSER_DOH_POLICY_NAME=libreguard-dns-over-https.json
+BROWSER_DOH_POLICY_CONTENT='{"DnsOverHttpsMode":"off"}'
+
+IP_BIN=/usr/sbin/ip
+if [ ! -x "$IP_BIN" ]; then
+    IP_BIN=/sbin/ip
+fi
+
+if [ ! -x "$IP_BIN" ]; then
+    echo "ip command not found." >&2
+    exit 127
+fi
+
+if [ "$(id -u)" -ne 0 ]; then
+    echo "LibreGuard IPv6 leak protection must run as root." >&2
+    exit 126
+fi
+
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 install|remove" >&2
+    exit 64
+fi
+
+OWNED_RULE_PATTERN='^[[:space:]]*1:[[:space:]]+from[[:space:]]+all([[:space:]]+to[[:space:]]+(all|::/0))?[[:space:]]+lookup[[:space:]]+42653[[:space:]]*$'
+LEGACY_OWNED_RULE_PATTERN='^[[:space:]]*10000:[[:space:]]+from[[:space:]]+all([[:space:]]+to[[:space:]]+(all|::/0))?[[:space:]]+lookup[[:space:]]+42653[[:space:]]*$'
+OWNED_ROUTE_PATTERN='^[[:space:]]*prohibit[[:space:]]+(default|::/0)([[:space:]]+dev[[:space:]]+lo)?[[:space:]]+metric[[:space:]]+1([[:space:]]+pref[[:space:]]+(low|medium|high))?[[:space:]]*$'
+
+has_owned_rule() {
+    "$IP_BIN" -N -6 rule show | grep -Eq "$OWNED_RULE_PATTERN"
+}
+
+has_legacy_owned_rule() {
+    "$IP_BIN" -N -6 rule show | grep -Eq "$LEGACY_OWNED_RULE_PATTERN"
+}
+
+has_foreign_priority_rule() {
+    priority_rules="$("$IP_BIN" -N -6 rule show | grep -E "^[[:space:]]*${PRIORITY}:" || true)"
+    [ -n "$priority_rules" ] || return 1
+    printf '%s\n' "$priority_rules" | grep -Ev "$OWNED_RULE_PATTERN" | grep -q .
+}
+
+has_owned_route() {
+    "$IP_BIN" -6 route show table "$TABLE" | grep -Eq "$OWNED_ROUTE_PATTERN"
+}
+
+has_foreign_table_route() {
+    table_routes="$("$IP_BIN" -6 route show table "$TABLE")"
+    [ -n "$table_routes" ] || return 1
+    printf '%s\n' "$table_routes" | grep -Ev "$OWNED_ROUTE_PATTERN" | grep -q .
+}
+
+remove_current_owned_rules() {
+    while has_owned_rule; do
+        "$IP_BIN" -6 rule del pref "$PRIORITY" from all lookup "$TABLE"
+    done
+}
+
+remove_legacy_owned_rules() {
+    while has_legacy_owned_rule; do
+        "$IP_BIN" -6 rule del pref "$LEGACY_PRIORITY" from all lookup "$TABLE"
+    done
+}
+
+remove_owned_rules() {
+    remove_current_owned_rules
+    remove_legacy_owned_rules
+}
+
+remove_owned_routes() {
+    while has_owned_route; do
+        "$IP_BIN" -6 route del prohibit default table "$TABLE" metric "$METRIC"
+    done
+}
+
+has_active_libreguard_vpn() {
+    command -v nmcli >/dev/null 2>&1 || return 2
+    if ! active_connections="$(nmcli -t -f NAME,TYPE connection show --active 2>/dev/null)"; then
+        return 2
+    fi
+
+    printf '%s\n' "$active_connections" \
+        | grep -Eq '^(libreguard-openvpn-|libreguard-ikev2-).*:vpn$'
+}
+
+has_managed_doh_canary() {
+    [ -f "$HOSTS_FILE" ] || return 1
+    grep -Fqx "$DOH_CANARY_LINE" "$HOSTS_FILE"
+}
+
+has_conflicting_doh_canary() {
+    [ -f "$HOSTS_FILE" ] || return 0
+    awk -v host="$DOH_CANARY_HOST" -v managed="$DOH_CANARY_LINE" '
+        $0 == managed { next }
+        {
+            line = $0
+            sub(/#.*/, "", line)
+            sub(/^[[:space:]]+/, "", line)
+            sub(/[[:space:]]+$/, "", line)
+            if (line == "") { next }
+            count = split(line, fields, /[[:space:]]+/)
+            if (count < 2) { next }
+            for (i = 2; i <= count; i++) {
+                name = tolower(fields[i])
+                if (name == host || name == host ".") { found = 1 }
+            }
+            if (found && fields[1] != "0.0.0.0" && fields[1] != "127.0.0.1" && fields[1] != "::1") {
+                conflict = 1
+            }
+            found = 0
+        }
+        END { exit conflict ? 0 : 1 }
+    ' "$HOSTS_FILE"
+}
+
+rewrite_hosts() {
+    mode="$1"
+    [ -f "$HOSTS_FILE" ] || {
+        echo "$HOSTS_FILE is unavailable." >&2
+        return 1
+    }
+
+    hosts_temp="$(mktemp "${HOSTS_FILE}.libreguard.XXXXXX")"
+    if ! cp --preserve=all -- "$HOSTS_FILE" "$hosts_temp"; then
+        rm -f -- "$hosts_temp"
+        return 1
+    fi
+
+    case "$mode" in
+        install)
+            if [ -s "$HOSTS_FILE" ] && [ "$(tail -c 1 "$HOSTS_FILE" | wc -l)" -eq 0 ]; then
+                printf '\n' >> "$hosts_temp"
+            fi
+            printf '%s\n' "$DOH_CANARY_LINE" >> "$hosts_temp"
+            ;;
+        remove)
+            if ! awk -v managed="$DOH_CANARY_LINE" '$0 != managed' "$HOSTS_FILE" > "$hosts_temp"; then
+                rm -f -- "$hosts_temp"
+                return 1
+            fi
+            ;;
+        *)
+            rm -f -- "$hosts_temp"
+            return 64
+            ;;
+    esac
+
+    if ! mv -f -- "$hosts_temp" "$HOSTS_FILE"; then
+        rm -f -- "$hosts_temp"
+        return 1
+    fi
+}
+
+install_doh_canary() {
+    if has_conflicting_doh_canary; then
+        echo "$DOH_CANARY_HOST has a conflicting entry in $HOSTS_FILE; refusing to overwrite user configuration." >&2
+        return 1
+    fi
+    if has_managed_doh_canary; then
+        return 0
+    fi
+
+    rewrite_hosts install
+    has_managed_doh_canary
+}
+
+remove_doh_canary() {
+    if has_managed_doh_canary; then
+        rewrite_hosts remove
+    fi
+    ! has_managed_doh_canary
+}
+
+browser_policy_directories() {
+    printf '%s\n' \
+        /etc/opt/chrome/policies/managed \
+        /etc/chromium/policies/managed \
+        /etc/chromium-browser/policies/managed \
+        /etc/brave/policies/managed \
+        /etc/opt/edge/policies/managed
+}
+
+should_manage_browser_policy() {
+    policy_dir="$1"
+    [ -d "$policy_dir" ] && return 0
+
+    case "$policy_dir" in
+        /etc/opt/chrome/policies/managed)
+            command -v google-chrome >/dev/null 2>&1 \
+                || command -v google-chrome-stable >/dev/null 2>&1
+            ;;
+        /etc/chromium/policies/managed|/etc/chromium-browser/policies/managed)
+            command -v chromium >/dev/null 2>&1 \
+                || command -v chromium-browser >/dev/null 2>&1
+            ;;
+        /etc/brave/policies/managed)
+            command -v brave-browser >/dev/null 2>&1 \
+                || command -v brave-browser-stable >/dev/null 2>&1
+            ;;
+        /etc/opt/edge/policies/managed)
+            command -v microsoft-edge >/dev/null 2>&1 \
+                || command -v microsoft-edge-stable >/dev/null 2>&1
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+has_owned_browser_policy() {
+    policy_file="$1/$BROWSER_DOH_POLICY_NAME"
+    [ -f "$policy_file" ] || return 1
+    compact_policy="$(tr -d '[:space:]' < "$policy_file")"
+    [ "$compact_policy" = "$BROWSER_DOH_POLICY_CONTENT" ]
+}
+
+external_browser_policy_status() {
+    policy_dir="$1"
+    found_policy=0
+    [ -d "$policy_dir" ] || return 0
+
+    for policy_file in "$policy_dir"/*.json; do
+        [ -f "$policy_file" ] || continue
+        [ "$(basename "$policy_file")" != "$BROWSER_DOH_POLICY_NAME" ] || continue
+        grep -Fq '"DnsOverHttpsMode"' "$policy_file" || continue
+        found_policy=1
+        compact_policy="$(tr -d '[:space:]' < "$policy_file")"
+        case "$compact_policy" in
+            *'"DnsOverHttpsMode":"off"'*)
+                ;;
+            *)
+                return 1
+                ;;
+        esac
+    done
+
+    [ "$found_policy" -eq 0 ] && return 0
+    return 2
+}
+
+install_browser_policy() {
+    policy_dir="$1"
+    policy_file="$policy_dir/$BROWSER_DOH_POLICY_NAME"
+    external_status=0
+    external_browser_policy_status "$policy_dir" || external_status=$?
+    case "$external_status" in
+        1)
+            echo "$policy_dir contains an existing DnsOverHttpsMode policy that is not off; refusing to overwrite administrator configuration." >&2
+            return 1
+            ;;
+        2)
+            # An administrator already enforces the safe setting. Do not add a duplicate key.
+            return 0
+            ;;
+    esac
+
+    if [ -e "$policy_file" ]; then
+        if ! has_owned_browser_policy "$policy_dir"; then
+            echo "$policy_file exists but is not the LibreGuard policy; refusing to overwrite it." >&2
+            return 1
+        fi
+        chown root:root "$policy_file"
+        chmod 0644 "$policy_file"
+        return 0
+    fi
+
+    install -d -o root -g root -m 0755 "$policy_dir"
+    policy_temp="$(mktemp "$policy_dir/.libreguard-doh.XXXXXX")"
+    printf '%s\n' "$BROWSER_DOH_POLICY_CONTENT" > "$policy_temp"
+    if ! install -o root -g root -m 0644 "$policy_temp" "$policy_file"; then
+        rm -f -- "$policy_temp"
+        return 1
+    fi
+    rm -f -- "$policy_temp"
+    has_owned_browser_policy "$policy_dir"
+}
+
+install_browser_doh_policies() {
+    while IFS= read -r policy_dir; do
+        should_manage_browser_policy "$policy_dir" || continue
+        install_browser_policy "$policy_dir" || return 1
+    done <<EOF
+$(browser_policy_directories)
+EOF
+}
+
+verify_browser_doh_policies() {
+    while IFS= read -r policy_dir; do
+        should_manage_browser_policy "$policy_dir" || continue
+        external_status=0
+        external_browser_policy_status "$policy_dir" || external_status=$?
+        case "$external_status" in
+            1)
+                return 1
+                ;;
+            2)
+                continue
+                ;;
+        esac
+        has_owned_browser_policy "$policy_dir" || return 1
+    done <<EOF
+$(browser_policy_directories)
+EOF
+}
+
+remove_browser_doh_policies() {
+    while IFS= read -r policy_dir; do
+        policy_file="$policy_dir/$BROWSER_DOH_POLICY_NAME"
+        [ -e "$policy_file" ] || continue
+        if ! has_owned_browser_policy "$policy_dir"; then
+            echo "$policy_file was changed after installation; refusing to delete it." >&2
+            return 1
+        fi
+        rm -f -- "$policy_file"
+    done <<EOF
+$(browser_policy_directories)
+EOF
+}
+
+rollback_install() {
+    if [ "${browser_policies_installed:-0}" -eq 1 ]; then
+        remove_browser_doh_policies || true
+    fi
+    if [ "${canary_added:-0}" -eq 1 ]; then
+        remove_doh_canary || true
+    fi
+    if [ "${rule_added:-0}" -eq 1 ]; then
+        remove_current_owned_rules || true
+    fi
+    if [ "${route_added:-0}" -eq 1 ]; then
+        remove_owned_routes || true
+    fi
+}
+
+install_protection() {
+    route_added=0
+    rule_added=0
+    canary_added=0
+    browser_policies_installed=0
+
+    if has_foreign_priority_rule; then
+        echo "IPv6 routing priority $PRIORITY is already used by a non-LibreGuard rule." >&2
+        exit 65
+    fi
+    if has_foreign_table_route; then
+        echo "IPv6 routing table $TABLE contains a non-LibreGuard route." >&2
+        exit 65
+    fi
+
+    if ! has_owned_route; then
+        "$IP_BIN" -6 route replace prohibit default table "$TABLE" metric "$METRIC"
+        route_added=1
+    fi
+
+    if ! has_owned_rule; then
+        if ! "$IP_BIN" -6 rule add pref "$PRIORITY" from all lookup "$TABLE"; then
+            rollback_install
+            exit 1
+        fi
+        rule_added=1
+    fi
+
+    if ! has_owned_route || ! has_owned_rule || has_foreign_table_route || has_foreign_priority_rule; then
+        echo "LibreGuard could not verify the IPv6 leak-protection routing state." >&2
+        rollback_install
+        exit 1
+    fi
+
+    if probe_output="$("$IP_BIN" -6 route get "$PROBE_ADDRESS" 2>&1)"; then
+        echo "Public IPv6 remained routable after installing LibreGuard leak protection." >&2
+        rollback_install
+        exit 1
+    fi
+
+    if ! printf '%s\n' "$probe_output" | grep -Eqi 'prohibit|administratively prohibited|permission denied'; then
+        echo "LibreGuard could not prove that public IPv6 is prohibited." >&2
+        rollback_install
+        exit 1
+    fi
+
+    if ! has_managed_doh_canary; then
+        if ! install_doh_canary; then
+            echo "LibreGuard could not install its browser DoH canary signal." >&2
+            rollback_install
+            exit 1
+        fi
+        canary_added=1
+    fi
+
+    if ! has_managed_doh_canary || has_conflicting_doh_canary; then
+        echo "LibreGuard could not verify its browser DoH canary signal." >&2
+        rollback_install
+        exit 1
+    fi
+
+    browser_policies_installed=1
+    if ! install_browser_doh_policies || ! verify_browser_doh_policies; then
+        echo "LibreGuard could not install or verify its temporary browser DNS-over-HTTPS policies." >&2
+        rollback_install
+        exit 1
+    fi
+
+    remove_legacy_owned_rules
+}
+
+remove_protection() {
+    active_status=0
+    has_active_libreguard_vpn || active_status=$?
+    case "$active_status" in
+        0)
+            echo "LibreGuard refused to remove leak protection while a LibreGuard VPN is active." >&2
+            exit 66
+            ;;
+        1)
+            ;;
+        *)
+            echo "LibreGuard could not prove that all VPN tunnels are down; IPv6 remains blocked." >&2
+            exit 69
+            ;;
+    esac
+
+    remove_browser_doh_policies
+    remove_doh_canary
+    remove_owned_rules
+    remove_owned_routes
+
+    if ! remaining_rules="$("$IP_BIN" -N -6 rule show)"; then
+        echo "LibreGuard could not verify IPv6 routing rules after cleanup." >&2
+        exit 1
+    fi
+    if ! remaining_routes="$("$IP_BIN" -6 route show table "$TABLE")"; then
+        echo "LibreGuard could not verify IPv6 routes after cleanup." >&2
+        exit 1
+    fi
+    if printf '%s\n' "$remaining_rules" | grep -Eq "$OWNED_RULE_PATTERN|$LEGACY_OWNED_RULE_PATTERN" \
+        || printf '%s\n' "$remaining_routes" | grep -Eq "$OWNED_ROUTE_PATTERN"; then
+        echo "LibreGuard could not remove its IPv6 leak-protection routing state." >&2
+        exit 1
+    fi
+    if has_managed_doh_canary; then
+        echo "LibreGuard could not remove its browser DoH canary signal." >&2
+        exit 1
+    fi
+    while IFS= read -r policy_dir; do
+        if has_owned_browser_policy "$policy_dir"; then
+            echo "LibreGuard could not remove its temporary browser DNS-over-HTTPS policy from $policy_dir." >&2
+            exit 1
+        fi
+    done <<EOF
+$(browser_policy_directories)
+EOF
+}
+
+case "$1" in
+    install)
+        install_protection
+        ;;
+    remove)
+        remove_protection
+        ;;
+    *)
+        echo "Usage: $0 install|remove" >&2
+        exit 64
+        ;;
+esac

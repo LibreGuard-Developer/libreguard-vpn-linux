@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <RootNamespace>Avalonia.Controls</RootNamespace>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>preview</LangVersion>
+    <Version>12.0.1-libreguard.1</Version>
+    <AssemblyVersion>12.0.1.0</AssemblyVersion>
+    <FileVersion>12.0.1.1</FileVersion>
+    <InformationalVersion>12.0.1-libreguard.1+8ae0a848102ad68a7cff54c48712871f78df7b9b</InformationalVersion>
+    <NoWarn>$(NoWarn);CA2256</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.5" />
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.242">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Avalonia.Controls.WebView" />
+    <InternalsVisibleTo Include="Libreguard.Vpn.Linux.Tests" />
+  </ItemGroup>
+</Project>

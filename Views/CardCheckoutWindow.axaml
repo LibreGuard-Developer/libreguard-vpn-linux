@@ -1,0 +1,72 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Libreguard.Vpn.Linux.Views.CardCheckoutWindow"
+        Width="1100"
+        Height="860"
+        MinWidth="760"
+        MinHeight="640"
+        Title="LibreGuard Card Checkout"
+        ShowInTaskbar="True"
+        WindowStartupLocation="CenterOwner">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="24" RowSpacing="16">
+    <StackPanel>
+      <TextBlock Text="Card Checkout" Classes="heading-xl" Margin="0,0,0,8" />
+      <TextBlock Text="Complete the secure hosted checkout. LibreGuard confirms your payment automatically." Classes="muted" TextWrapping="Wrap" />
+    </StackPanel>
+
+    <Border Grid.Row="1" Classes="card" Padding="18">
+      <Grid RowDefinitions="Auto,*,Auto" RowSpacing="16">
+        <StackPanel>
+          <TextBlock Text="Hosted checkout" Classes="heading" Margin="0,0,0,8" />
+          <TextBlock x:Name="SummaryText" Classes="muted" TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Border Grid.Row="1"
+                Background="{DynamicResource BackgroundBrush}"
+                BorderBrush="{DynamicResource BorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                ClipToBounds="True">
+          <Grid MinHeight="460">
+            <ContentControl x:Name="CheckoutWebViewHost" />
+            <Border x:Name="CheckoutStatusOverlay"
+                    Background="{DynamicResource BackgroundBrush}"
+                    Opacity="0.96"
+                    IsVisible="True">
+              <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Spacing="12" Margin="24">
+                <TextBlock x:Name="CheckoutStatusText"
+                           Text="Loading secure checkout..."
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource PrimaryBrush}"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap" />
+                <TextBlock x:Name="CheckoutStatusDetailText"
+                           Classes="muted"
+                           HorizontalAlignment="Center"
+                           TextAlignment="Center"
+                           TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </Grid>
+        </Border>
+
+        <TextBlock Grid.Row="2"
+                   Text="Payment completion is confirmed automatically. This window closes when your Pro subscription is active."
+                   Classes="small-muted"
+                   TextWrapping="Wrap" />
+      </Grid>
+    </Border>
+
+    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="10">
+      <Button Content="Continue in Browser"
+              Classes="secondary"
+              HorizontalAlignment="Left"
+              Click="HandleBrowserClick" />
+      <Button Grid.Column="1"
+              Content="Close"
+              Classes="ghost"
+              Click="HandleCloseClick" />
+    </Grid>
+  </Grid>
+</Window>

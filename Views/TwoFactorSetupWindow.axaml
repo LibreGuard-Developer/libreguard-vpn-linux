@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Libreguard.Vpn.Linux.Views.TwoFactorSetupWindow"
+        Title="LibreGuard VPN - Two-Factor Authentication"
+        Width="500"
+        Height="720"
+        MinWidth="460"
+        MinHeight="640"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False">
+  <Border Classes="modal" Padding="0">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Margin="32" Spacing="0">
+        <TextBlock Text="Set Up Two-Factor Authentication" Classes="heading-large" Margin="0,0,0,8" />
+        <TextBlock Text="Protect your account with an extra layer of security." Classes="muted" TextWrapping="Wrap" Margin="0,0,0,24" />
+
+        <TextBlock Text="Step 1: Scan the QR code" Classes="subheading" Margin="0,0,0,12" />
+        <TextBlock Text="Use Google Authenticator, Microsoft Authenticator, Authy, or another compatible app to scan this code." Classes="small-muted" TextWrapping="Wrap" Margin="0,0,0,16" />
+        <Border Classes="card" HorizontalAlignment="Center" Padding="16" Margin="0,0,0,16">
+          <Image Width="240" Height="240" Source="{Binding QrCodeImage}" Stretch="Uniform" />
+        </Border>
+
+        <Border Classes="info-panel" Margin="0,0,0,24">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Can't scan? Enter this code manually:" Classes="small-muted" />
+            <TextBox Text="{Binding SharedKey}" IsReadOnly="True" FontFamily="Consolas, Courier New, monospace" />
+          </StackPanel>
+        </Border>
+
+        <TextBlock Text="Step 2: Verify setup" Classes="subheading" Margin="0,0,0,12" />
+        <TextBlock Text="Enter the 6-digit code from your authenticator app to finish enabling 2FA." Classes="small-muted" TextWrapping="Wrap" Margin="0,0,0,12" />
+        <TextBlock Text="Verification Code" Classes="small-muted" Margin="0,0,0,8" />
+        <TextBox Text="{Binding VerificationCode}" HorizontalContentAlignment="Center" FontSize="18" MaxLength="6" Margin="0,0,0,16" />
+        <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource DestructiveBrush}" TextWrapping="Wrap" Margin="0,0,0,16" />
+
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+          <Button Classes="secondary" Content="Cancel" Command="{Binding CancelCommand}" />
+          <Button Grid.Column="1" Classes="primary" Content="Enable 2FA" Command="{Binding EnableTwoFactorCommand}" />
+        </Grid>
+      </StackPanel>
+    </ScrollViewer>
+  </Border>
+</Window>

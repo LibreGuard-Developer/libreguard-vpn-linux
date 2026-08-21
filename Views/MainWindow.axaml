@@ -1,0 +1,1888 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shapes="clr-namespace:Avalonia.Controls.Shapes;assembly=Avalonia.Controls"
+        x:Class="Libreguard.Vpn.Linux.Views.MainWindow"
+        Title="LibreGuard VPN"
+        Width="1200"
+        Height="820"
+        MinWidth="960"
+        MinHeight="720"
+        Background="{DynamicResource BackgroundBrush}">
+  <Grid>
+    <!-- Auth screens -->
+    <Grid IsVisible="{Binding IsInitializing}" Background="{DynamicResource BackgroundBrush}">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="16">
+        <ProgressBar IsIndeterminate="True" Width="180" Height="6" />
+        <TextBlock Text="Restoring your session..." HorizontalAlignment="Center" />
+      </StackPanel>
+    </Grid>
+    <Grid IsVisible="{Binding IsUnauthenticated}">
+      <ScrollViewer IsVisible="{Binding IsCompactLayout}">
+        <StackPanel Margin="24" Spacing="24">
+          <Border Background="{DynamicResource BrandPanelBrush}" Padding="32" CornerRadius="0">
+            <StackPanel Spacing="18">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <Border Width="64" Height="64" CornerRadius="12" Background="{DynamicResource PrimaryLightBrush}" ClipToBounds="True">
+                  <Image Source="avares://libreguard-vpn-linux/Resources/LibreGuard_logo_login_rounded12.png"
+                         Stretch="Fill"
+                         Margin="0" />
+                </Border>
+                <TextBlock Text="LibreGuard" FontSize="28" FontWeight="SemiBold" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock Text="Privacy-First VPN Protection" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" />
+              <TextBlock Text="Secure your connection with military-grade encryption and browse freely without tracking."
+                         FontSize="16"
+                         Foreground="{DynamicResource MutedForegroundBrush}"
+                         TextWrapping="Wrap" />
+            </StackPanel>
+          </Border>
+
+          <Border Background="{DynamicResource BackgroundBrush}">
+            <StackPanel MaxWidth="420" HorizontalAlignment="Center" Spacing="0">
+              <Panel IsVisible="{Binding IsLoginView}">
+                <StackPanel Spacing="0" HorizontalAlignment="Stretch">
+                  <TextBlock Text="Welcome Back" Classes="heading-xl" Margin="0,0,0,8" />
+                  <TextBlock Text="Sign in to your account to continue" Classes="muted" Margin="0,0,0,32" />
+                  <TextBlock Text="Email Address" Classes="small-muted" Margin="0,0,0,8" />
+                  <Grid Margin="0,0,0,20">
+                    <TextBox Classes="icon-field" Text="{Binding Email}" />
+                    <TextBlock Text="&#x2709;" FontSize="16" FontFamily="{StaticResource IconFontFamily}"
+                               Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                  </Grid>
+                  <TextBlock Text="Password" Classes="small-muted" Margin="0,0,0,8" />
+                  <Grid Margin="0,0,0,12">
+                    <TextBox Classes="password-field" Text="{Binding Password}" PasswordChar="*" IsVisible="{Binding HidePassword}" />
+                    <TextBox Classes="password-field" Text="{Binding Password}" IsVisible="{Binding ShowPassword}" />
+                    <TextBlock Text="&#x1F512;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                    <Button Classes="ghost" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" Padding="8" Command="{Binding TogglePasswordVisibilityCommand}">
+                      <TextBlock Text="&#x1F441;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                    </Button>
+                  </Grid>
+                  <Button Content="Forgot password?" Classes="link" HorizontalAlignment="Right" Command="{Binding SelectAuthViewCommand}" CommandParameter="Forgot" Margin="0,0,0,24" />
+                  <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource DestructiveBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,16" />
+                  <Grid Margin="0,0,0,24">
+                    <Button Classes="primary" Content="Sign In" Command="{Binding LoginCommand}" IsVisible="{Binding IsLoginIdle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+                    <Button Classes="destructive" Content="Cancel Signing In" Command="{Binding CancelLoginCommand}" IsVisible="{Binding IsLoginRunning}" HorizontalContentAlignment="Center" />
+                  </Grid>
+                  <Grid Margin="0,0,0,24" ColumnDefinitions="*,Auto,*">
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="Or continue with" Classes="small-muted" Background="{DynamicResource BackgroundBrush}" Padding="16,0" />
+                    <Border Grid.Column="2" Height="1" Background="{DynamicResource BorderBrush}" VerticalAlignment="Center" />
+                  </Grid>
+                  <Grid Margin="0,0,0,24">
+                    <Button Classes="secondary" Command="{Binding OAuthLoginCommand}" IsVisible="{Binding IsGoogleLoginIdle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                        <TextBlock Text="G" FontSize="16" FontWeight="Bold" />
+                        <TextBlock Text="Sign in with Google" FontSize="14" />
+                      </StackPanel>
+                    </Button>
+                    <Button Classes="destructive" Content="Cancel Google Sign In" Command="{Binding CancelGoogleLoginCommand}" IsVisible="{Binding IsGoogleLoginRunning}" HorizontalContentAlignment="Center" />
+                  </Grid>
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="Don't have an account? " Classes="muted" />
+                    <Button Content="Sign up" Classes="link" Command="{Binding SelectAuthViewCommand}" CommandParameter="Register" />
+                  </StackPanel>
+                </StackPanel>
+              </Panel>
+
+              <Panel IsVisible="{Binding IsRegisterView}">
+                <StackPanel Spacing="0" HorizontalAlignment="Stretch">
+                  <TextBlock Text="Create Account" Classes="heading-xl" Margin="0,0,0,8" />
+                  <TextBlock Text="Sign up to get started with LibreGuard VPN" Classes="muted" Margin="0,0,0,32" />
+                  <TextBlock Text="Email Address" Classes="small-muted" Margin="0,0,0,8" />
+                  <Grid Margin="0,0,0,20">
+                    <TextBox Classes="icon-field" Text="{Binding Email}" />
+                    <TextBlock Text="&#x2709;" FontSize="16" FontFamily="{StaticResource IconFontFamily}"
+                               Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                  </Grid>
+                  <TextBlock Text="Password" Classes="small-muted" Margin="0,0,0,8" />
+                  <Grid Margin="0,0,0,12">
+                    <TextBox Classes="password-field" Text="{Binding Password}" PasswordChar="*" IsVisible="{Binding HidePassword}" />
+                    <TextBox Classes="password-field" Text="{Binding Password}" IsVisible="{Binding ShowPassword}" />
+                    <TextBlock Text="&#x1F512;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                    <Button Classes="ghost" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" Padding="8" Command="{Binding TogglePasswordVisibilityCommand}">
+                      <TextBlock Text="&#x1F441;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                    </Button>
+                  </Grid>
+                  <Grid Margin="0,0,0,8">
+                    <TextBlock Text="Password Strength" Classes="small-muted" />
+                    <TextBlock Text="Strong" Foreground="{DynamicResource StatusConnectedBrush}" HorizontalAlignment="Right" IsVisible="{Binding IsPasswordStrong}" Classes="small-muted" />
+                    <TextBlock Text="Weak" Foreground="{DynamicResource DestructiveBrush}" HorizontalAlignment="Right" IsVisible="{Binding IsPasswordWeak}" Classes="small-muted" />
+                  </Grid>
+                  <ProgressBar Value="{Binding PasswordStrengthScore}" Maximum="100" Height="4" Margin="0,0,0,8" />
+                  <TextBlock Text="{Binding PasswordPolicyText}" Classes="small-muted" TextWrapping="Wrap" Margin="0,0,0,20" />
+                  <TextBlock Text="Confirm Password" Classes="small-muted" Margin="0,0,0,8" />
+                  <Grid Margin="0,0,0,20">
+                    <TextBox Classes="password-field" Text="{Binding ConfirmPassword}" PasswordChar="*" IsVisible="{Binding HideConfirmPassword}" />
+                    <TextBox Classes="password-field" Text="{Binding ConfirmPassword}" IsVisible="{Binding ShowConfirmPassword}" />
+                    <TextBlock Text="&#x1F512;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                    <Button Classes="ghost" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" Padding="8" Command="{Binding ToggleConfirmPasswordVisibilityCommand}">
+                      <TextBlock Text="&#x1F441;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                    </Button>
+                  </Grid>
+                  <TextBlock Text="Passwords do not match." Foreground="{DynamicResource DestructiveBrush}" FontSize="12" IsVisible="{Binding ShouldShowPasswordMismatch}" Margin="0,-12,0,16" />
+                  <Button Classes="primary" Content="Create Account" Command="{Binding RegisterCommand}" IsVisible="{Binding IsRegisterIdle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,24" />
+                  <Button Classes="destructive" Content="Cancel Creating Account" Command="{Binding CancelRegisterCommand}" IsVisible="{Binding IsRegisterRunning}" HorizontalContentAlignment="Center" Margin="0,0,0,24" />
+                  <Grid Margin="0,0,0,24" ColumnDefinitions="*,Auto,*">
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="Or continue with" Classes="small-muted" Background="{DynamicResource BackgroundBrush}" Padding="16,0" />
+                    <Border Grid.Column="2" Height="1" Background="{DynamicResource BorderBrush}" VerticalAlignment="Center" />
+                  </Grid>
+                  <Button Classes="secondary" Command="{Binding OAuthLoginCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,24">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                      <TextBlock Text="G" FontSize="16" FontWeight="Bold" />
+                      <TextBlock Text="Continue with Google" FontSize="14" />
+                    </StackPanel>
+                  </Button>
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="Already have an account? " Classes="muted" />
+                    <Button Content="Sign in" Classes="link" Command="{Binding SelectAuthViewCommand}" CommandParameter="Login" />
+                  </StackPanel>
+                </StackPanel>
+              </Panel>
+
+              <Panel IsVisible="{Binding IsForgotView}">
+                <StackPanel HorizontalAlignment="Center" MaxWidth="400">
+                  <Border Classes="round-icon" HorizontalAlignment="Center" Margin="0,0,0,24">
+                    <TextBlock Text="&#x1F512;" FontSize="36" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <TextBlock Text="Reset Password" Classes="heading-xl" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                  <TextBlock Text="Enter your email address and we'll send you instructions to reset your password."
+                             Classes="muted"
+                             TextAlignment="Center"
+                             TextWrapping="Wrap"
+                             Margin="0,0,0,24" />
+                  <TextBlock Text="Email Address" Classes="small-muted" Margin="0,0,0,8" />
+                  <TextBox Text="{Binding Email}" Margin="0,0,0,24" />
+                  <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource DestructiveBrush}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                  <Button Classes="primary" Content="Send Reset Link" Command="{Binding ForgotPasswordCommand}" IsVisible="{Binding IsForgotPasswordIdle}" Margin="0,0,0,16" />
+                  <Button Classes="destructive" Content="Cancel" Command="{Binding CancelForgotPasswordCommand}" IsVisible="{Binding IsForgotPasswordRunning}" HorizontalContentAlignment="Center" Margin="0,0,0,16" />
+                  <Button Content="Back to Login" Classes="ghost" Command="{Binding SelectAuthViewCommand}" CommandParameter="Login" HorizontalAlignment="Center" />
+                  <Button Content="I have a reset token" Classes="link" Command="{Binding SelectAuthViewCommand}" CommandParameter="Reset" HorizontalAlignment="Center" Margin="0,16,0,0" />
+                </StackPanel>
+              </Panel>
+
+              <Panel IsVisible="{Binding IsResetView}">
+                <StackPanel HorizontalAlignment="Center" MaxWidth="400">
+                  <Border Classes="round-icon" HorizontalAlignment="Center" Margin="0,0,0,24">
+                    <TextBlock Text="&#x1F512;" FontSize="36" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <TextBlock Text="Choose a New Password" Classes="heading-xl" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                  <TextBlock Text="Enter your reset token and new password to finish resetting your account."
+                             Classes="muted"
+                             TextAlignment="Center"
+                             TextWrapping="Wrap"
+                             Margin="0,0,0,24" />
+                  <TextBlock Text="Email Address" Classes="small-muted" Margin="0,0,0,8" />
+                  <TextBox Text="{Binding Email}" Margin="0,0,0,20" />
+                  <TextBlock Text="Reset Token" Classes="small-muted" Margin="0,0,0,8" />
+                  <TextBox Text="{Binding ResetToken}" Margin="0,0,0,20" />
+                  <TextBlock Text="New Password" Classes="small-muted" Margin="0,0,0,8" />
+                  <Grid Margin="0,0,0,12">
+                    <TextBox Classes="password-field" Text="{Binding NewPassword}" PasswordChar="*" IsVisible="{Binding HideNewPassword}" />
+                    <TextBox Classes="password-field" Text="{Binding NewPassword}" IsVisible="{Binding ShowNewPassword}" />
+                    <TextBlock Text="&#x1F512;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                    <Button Classes="ghost" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" Padding="8" Command="{Binding ToggleNewPasswordVisibilityCommand}">
+                      <TextBlock Text="&#x1F441;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                    </Button>
+                  </Grid>
+                  <Grid Margin="0,0,0,8">
+                    <TextBlock Text="Password Strength" Classes="small-muted" />
+                    <TextBlock Text="Strong" Foreground="{DynamicResource StatusConnectedBrush}" HorizontalAlignment="Right" IsVisible="{Binding IsNewPasswordStrong}" Classes="small-muted" />
+                    <TextBlock Text="Weak" Foreground="{DynamicResource DestructiveBrush}" HorizontalAlignment="Right" IsVisible="{Binding IsNewPasswordWeak}" Classes="small-muted" />
+                  </Grid>
+                  <ProgressBar Value="{Binding NewPasswordStrengthScore}" Maximum="100" Height="4" Margin="0,0,0,8" />
+                  <TextBlock Text="{Binding PasswordPolicyText}" Classes="small-muted" TextWrapping="Wrap" Margin="0,0,0,20" />
+                  <TextBlock Text="Confirm Password" Classes="small-muted" Margin="0,0,0,8" />
+                  <TextBox Text="{Binding ConfirmPassword}" PasswordChar="*" Margin="0,0,0,20" />
+                  <TextBlock Text="Passwords do not match." Foreground="{DynamicResource DestructiveBrush}" FontSize="12" IsVisible="{Binding ShouldShowPasswordMismatch}" Margin="0,-12,0,16" />
+                  <Button Classes="primary" Content="Reset Password" Command="{Binding ResetPasswordCommand}" IsVisible="{Binding IsResetPasswordIdle}" Margin="0,0,0,16" />
+                  <Button Classes="destructive" Content="Cancel" Command="{Binding CancelResetPasswordCommand}" IsVisible="{Binding IsResetPasswordRunning}" HorizontalContentAlignment="Center" Margin="0,0,0,16" />
+                  <Button Content="Back to Login" Classes="ghost" Command="{Binding SelectAuthViewCommand}" CommandParameter="Login" HorizontalAlignment="Center" />
+                </StackPanel>
+              </Panel>
+
+              <Panel IsVisible="{Binding IsEmailConfirmationView}">
+                <StackPanel HorizontalAlignment="Stretch" MaxWidth="400">
+                  <Border Classes="round-icon" HorizontalAlignment="Center" Margin="0,0,0,24">
+                    <TextBlock Text="&#x2709;" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <TextBlock Text="Check Your Email" Classes="heading-xl" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                  <TextBlock Text="We've sent a confirmation link to your email address."
+                             Classes="muted"
+                             TextAlignment="Center"
+                             TextWrapping="Wrap"
+                             Margin="0,0,0,24" />
+                  <TextBox Text="{Binding Email}" PlaceholderText="Email address" IsReadOnly="True" Margin="0,0,0,16" />
+                  <TextBlock Text="{Binding StatusMessage}" Classes="muted" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,16" />
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,0,0,16">
+                    <Button Classes="primary" Content="I have verified my email" Command="{Binding CheckEmailConfirmationCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,12" />
+                    <Button Grid.Column="1" Classes="secondary" Content="Resend" Command="{Binding ResendConfirmationCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,12" />
+                  </Grid>
+                  <Button Content="Back to Login" Classes="ghost" Command="{Binding SelectAuthViewCommand}" CommandParameter="Login" HorizontalAlignment="Center" />
+                </StackPanel>
+              </Panel>
+
+              <Panel IsVisible="{Binding IsTwoFactorView}">
+                <StackPanel HorizontalAlignment="Center" MaxWidth="400">
+                  <TextBlock Text="Two-Factor Authentication" Classes="heading-large" Margin="0,0,0,12" />
+                  <TextBlock Text="Enter the 6-digit code from your authenticator app."
+                             Classes="muted"
+                             TextWrapping="Wrap"
+                             Margin="0,0,0,24" />
+                  <TextBlock Text="Verification Code" Classes="small-muted" Margin="0,0,0,8" />
+                  <TextBox Text="{Binding TwoFactorCode}" HorizontalContentAlignment="Center" FontSize="20" FontWeight="SemiBold" MaxLength="6" Margin="0,0,0,16" />
+                  <Button Content="Use a recovery code" Classes="link" Command="{Binding ToggleRecoveryCodeEntryCommand}" HorizontalAlignment="Left" Margin="0,0,0,12" />
+                  <StackPanel IsVisible="{Binding ShowRecoveryCodeEntry}">
+                    <TextBlock Text="Recovery Code" Classes="small-muted" Margin="0,0,0,8" />
+                    <TextBox Text="{Binding RecoveryCode}" Margin="0,0,0,16" />
+                    <Button Classes="secondary" Content="Use recovery code" Command="{Binding VerifyRecoveryCodeCommand}" Margin="0,0,0,16" />
+                  </StackPanel>
+                  <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource DestructiveBrush}" TextWrapping="Wrap" FontSize="13" Margin="0,0,0,16" />
+                  <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                    <Button Classes="secondary" Content="Cancel" Command="{Binding SelectAuthViewCommand}" CommandParameter="Login" />
+                    <Button Grid.Column="1" Classes="primary" Content="Verify" Command="{Binding VerifyTwoFactorCommand}" />
+                  </Grid>
+                </StackPanel>
+              </Panel>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+
+      <Grid IsVisible="{Binding IsWideLayout}" ColumnDefinitions="*,*" Background="{DynamicResource BackgroundBrush}">
+        <Border Grid.Column="0" Background="{DynamicResource BrandPanelBrush}">
+          <Grid Margin="48" RowDefinitions="Auto,*,Auto">
+            <StackPanel Orientation="Horizontal" Margin="0,0,0,48">
+              <Border Width="64" Height="64" CornerRadius="12" Background="{DynamicResource PrimaryLightBrush}" ClipToBounds="True">
+                <Image Source="avares://libreguard-vpn-linux/Resources/LibreGuard_logo_login_rounded12.png"
+                       Stretch="Fill"
+                       Margin="0" />
+              </Border>
+              <TextBlock Text="LibreGuard" FontSize="28" FontWeight="SemiBold" VerticalAlignment="Center" Margin="12,0,0,0" />
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" VerticalAlignment="Top">
+              <TextBlock Text="Privacy-First VPN Protection" IsVisible="{Binding IsLoginView}" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,24" />
+              <TextBlock Text="Start Your Privacy Journey" IsVisible="{Binding IsRegisterView}" FontSize="32" FontWeight="SemiBold" TextWrapping="Wrap" Margin="0,0,0,24" />
+              <TextBlock Text="Secure your connection with military-grade encryption and browse freely without tracking."
+                         IsVisible="{Binding IsLoginView}"
+                         FontSize="16"
+                         Foreground="{DynamicResource MutedForegroundBrush}"
+                         TextWrapping="Wrap"
+                         Margin="0,0,0,32" />
+              <TextBlock Text="Create your account and get instant access to secure, encrypted browsing across all your devices."
+                         IsVisible="{Binding IsRegisterView}"
+                         FontSize="16"
+                         Foreground="{DynamicResource MutedForegroundBrush}"
+                         TextWrapping="Wrap"
+                         Margin="0,0,0,32" />
+              <StackPanel Spacing="12">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Border Width="24" Height="24" CornerRadius="12" Background="{DynamicResource PrimaryLightBrush}">
+                    <TextBlock Text="&#x2713;" FontSize="12" Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <TextBlock Text="No-logs policy" Classes="muted" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Border Width="24" Height="24" CornerRadius="12" Background="{DynamicResource PrimaryLightBrush}">
+                    <TextBlock Text="&#x2713;" FontSize="12" Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <TextBlock Text="5GB Monthly on Free, Unlimited bandwidth on Pro plan" Classes="muted" VerticalAlignment="Center" />
+                </StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Border Width="24" Height="24" CornerRadius="12" Background="{DynamicResource PrimaryLightBrush}">
+                    <TextBlock Text="&#x2713;" FontSize="12" Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <TextBlock Text="Connect 1 device on Free or up to 3 devices simultaneously on Pro plan" Classes="muted" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Border Width="24" Height="24" CornerRadius="12" Background="{DynamicResource PrimaryLightBrush}">
+                    <TextBlock Text="&#x2713;" FontSize="12" Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <TextBlock Text="Cross-platform support" Classes="muted" VerticalAlignment="Center" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <Border Width="24" Height="24" CornerRadius="12" Background="{DynamicResource PrimaryLightBrush}">
+                    <TextBlock Text="&#x2713;" FontSize="12" Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <TextBlock Text="Open source" Classes="muted" VerticalAlignment="Center" />
+                </StackPanel>
+              </StackPanel>
+            </StackPanel>
+
+            <TextBlock Grid.Row="2" Text="Open source under GPLv2 or later | Built with transparency in mind" Classes="small-muted" Margin="0,24,0,0" />
+          </Grid>
+        </Border>
+
+        <Border Grid.Column="1" Background="{DynamicResource BackgroundBrush}">
+          <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel VerticalAlignment="Center" Margin="48" MaxWidth="400">
+              <Panel IsVisible="{Binding IsLoginView}">
+                <StackPanel Spacing="0" HorizontalAlignment="Stretch">
+                  <TextBlock Text="Welcome Back" Classes="heading-xl" Margin="0,0,0,8" />
+                  <TextBlock Text="Sign in to your account to continue" Classes="muted" Margin="0,0,0,32" />
+                  <TextBlock Text="Email Address" Classes="small-muted" Margin="0,0,0,8" />
+                  <Grid Margin="0,0,0,20">
+                    <TextBox Classes="icon-field" Text="{Binding Email}" />
+                    <TextBlock Text="&#x2709;" FontSize="16" FontFamily="{StaticResource IconFontFamily}"
+                               Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                  </Grid>
+                  <TextBlock Text="Password" Classes="small-muted" Margin="0,0,0,8" />
+                  <Grid Margin="0,0,0,12">
+                    <TextBox Classes="password-field" Text="{Binding Password}" PasswordChar="*" IsVisible="{Binding HidePassword}" />
+                    <TextBox Classes="password-field" Text="{Binding Password}" IsVisible="{Binding ShowPassword}" />
+                    <TextBlock Text="&#x1F512;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                    <Button Classes="ghost" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" Padding="8" Command="{Binding TogglePasswordVisibilityCommand}">
+                      <TextBlock Text="&#x1F441;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                    </Button>
+                  </Grid>
+                  <Button Content="Forgot password?" Classes="link" HorizontalAlignment="Right" Command="{Binding SelectAuthViewCommand}" CommandParameter="Forgot" Margin="0,0,0,24" />
+                  <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource DestructiveBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,16" />
+                  <Grid Margin="0,0,0,24">
+                    <Button Classes="primary" Content="Sign In" Command="{Binding LoginCommand}" IsVisible="{Binding IsLoginIdle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+                    <Button Classes="destructive" Content="Cancel Signing In" Command="{Binding CancelLoginCommand}" IsVisible="{Binding IsLoginRunning}" HorizontalContentAlignment="Center" />
+                  </Grid>
+                  <Grid Margin="0,0,0,24" ColumnDefinitions="*,Auto,*">
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="Or continue with" Classes="small-muted" Background="{DynamicResource BackgroundBrush}" Padding="16,0" />
+                    <Border Grid.Column="2" Height="1" Background="{DynamicResource BorderBrush}" VerticalAlignment="Center" />
+                  </Grid>
+                  <Grid Margin="0,0,0,24">
+                    <Button Classes="secondary" Command="{Binding OAuthLoginCommand}" IsVisible="{Binding IsGoogleLoginIdle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center">
+                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                        <TextBlock Text="G" FontSize="16" FontWeight="Bold" />
+                        <TextBlock Text="Sign in with Google" FontSize="14" />
+                      </StackPanel>
+                    </Button>
+                    <Button Classes="destructive" Content="Cancel Google Sign In" Command="{Binding CancelGoogleLoginCommand}" IsVisible="{Binding IsGoogleLoginRunning}" HorizontalContentAlignment="Center" />
+                  </Grid>
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="Don't have an account? " Classes="muted" />
+                    <Button Content="Sign up" Classes="link" Command="{Binding SelectAuthViewCommand}" CommandParameter="Register" />
+                  </StackPanel>
+                </StackPanel>
+              </Panel>
+
+              <Panel IsVisible="{Binding IsRegisterView}">
+                <StackPanel Spacing="0" HorizontalAlignment="Stretch">
+                  <TextBlock Text="Create Account" Classes="heading-xl" Margin="0,0,0,8" />
+                  <TextBlock Text="Sign up to get started with LibreGuard VPN" Classes="muted" Margin="0,0,0,32" />
+                  <TextBlock Text="Email Address" Classes="small-muted" Margin="0,0,0,8" />
+                  <Grid Margin="0,0,0,20">
+                    <TextBox Classes="icon-field" Text="{Binding Email}" />
+                    <TextBlock Text="&#x2709;" FontSize="16" FontFamily="{StaticResource IconFontFamily}"
+                               Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                  </Grid>
+                  <TextBlock Text="Password" Classes="small-muted" Margin="0,0,0,8" />
+                  <Grid Margin="0,0,0,12">
+                    <TextBox Classes="password-field" Text="{Binding Password}" PasswordChar="*" IsVisible="{Binding HidePassword}" />
+                    <TextBox Classes="password-field" Text="{Binding Password}" IsVisible="{Binding ShowPassword}" />
+                    <TextBlock Text="&#x1F512;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                    <Button Classes="ghost" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" Padding="8" Command="{Binding TogglePasswordVisibilityCommand}">
+                      <TextBlock Text="&#x1F441;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                    </Button>
+                  </Grid>
+                  <Grid Margin="0,0,0,8">
+                    <TextBlock Text="Password Strength" Classes="small-muted" />
+                    <TextBlock Text="Strong" Foreground="{DynamicResource StatusConnectedBrush}" HorizontalAlignment="Right" IsVisible="{Binding IsPasswordStrong}" Classes="small-muted" />
+                    <TextBlock Text="Weak" Foreground="{DynamicResource DestructiveBrush}" HorizontalAlignment="Right" IsVisible="{Binding IsPasswordWeak}" Classes="small-muted" />
+                  </Grid>
+                  <ProgressBar Value="{Binding PasswordStrengthScore}" Maximum="100" Height="4" Margin="0,0,0,8" />
+                  <TextBlock Text="{Binding PasswordPolicyText}" Classes="small-muted" TextWrapping="Wrap" Margin="0,0,0,20" />
+                  <TextBlock Text="Confirm Password" Classes="small-muted" Margin="0,0,0,8" />
+                  <Grid Margin="0,0,0,20">
+                    <TextBox Classes="password-field" Text="{Binding ConfirmPassword}" PasswordChar="*" IsVisible="{Binding HideConfirmPassword}" />
+                    <TextBox Classes="password-field" Text="{Binding ConfirmPassword}" IsVisible="{Binding ShowConfirmPassword}" />
+                    <TextBlock Text="&#x1F512;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                    <Button Classes="ghost" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" Padding="8" Command="{Binding ToggleConfirmPasswordVisibilityCommand}">
+                      <TextBlock Text="&#x1F441;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                    </Button>
+                  </Grid>
+                  <TextBlock Text="Passwords do not match." Foreground="{DynamicResource DestructiveBrush}" FontSize="12" IsVisible="{Binding ShouldShowPasswordMismatch}" Margin="0,-12,0,16" />
+                  <Button Classes="primary" Content="Create Account" Command="{Binding RegisterCommand}" IsVisible="{Binding IsRegisterIdle}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,24" />
+                  <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource DestructiveBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,16" />
+                  <Grid Margin="0,0,0,24" ColumnDefinitions="*,Auto,*">
+                    <Border Height="1" Background="{DynamicResource BorderBrush}" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="Or continue with" Classes="small-muted" Background="{DynamicResource BackgroundBrush}" Padding="16,0" />
+                    <Border Grid.Column="2" Height="1" Background="{DynamicResource BorderBrush}" VerticalAlignment="Center" />
+                  </Grid>
+                  <Button Classes="secondary" Command="{Binding OAuthLoginCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,24">
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                      <TextBlock Text="G" FontSize="16" FontWeight="Bold" />
+                      <TextBlock Text="Continue with Google" FontSize="14" />
+                    </StackPanel>
+                  </Button>
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock Text="Already have an account? " Classes="muted" />
+                    <Button Content="Sign in" Classes="link" Command="{Binding SelectAuthViewCommand}" CommandParameter="Login" />
+                  </StackPanel>
+                </StackPanel>
+              </Panel>
+
+              <ContentControl IsVisible="{Binding IsForgotView}" Content="{Binding}">
+                <ContentControl.ContentTemplate>
+                  <DataTemplate>
+                    <StackPanel HorizontalAlignment="Center" MaxWidth="400">
+                      <Border Classes="round-icon" HorizontalAlignment="Center" Margin="0,0,0,24">
+                        <TextBlock Text="&#x1F512;" FontSize="36" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                      <TextBlock Text="Reset Password" Classes="heading-xl" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                      <TextBlock Text="Enter your email address and we'll send you instructions to reset your password." Classes="muted" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,24" />
+                      <TextBlock Text="Email Address" Classes="small-muted" Margin="0,0,0,8" />
+                      <TextBox Text="{Binding Email}" Margin="0,0,0,24" />
+                      <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource DestructiveBrush}" TextWrapping="Wrap" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                      <Button Classes="primary" Content="Send Reset Link" Command="{Binding ForgotPasswordCommand}" Margin="0,0,0,16" />
+                      <Button Content="Back to Login" Classes="ghost" Command="{Binding SelectAuthViewCommand}" CommandParameter="Login" HorizontalAlignment="Center" />
+                      <Button Content="I have a reset token" Classes="link" Command="{Binding SelectAuthViewCommand}" CommandParameter="Reset" HorizontalAlignment="Center" Margin="0,16,0,0" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ContentControl.ContentTemplate>
+              </ContentControl>
+
+              <ContentControl IsVisible="{Binding IsResetView}" Content="{Binding}">
+                <ContentControl.ContentTemplate>
+                  <DataTemplate>
+                    <StackPanel HorizontalAlignment="Center" MaxWidth="400">
+                      <Border Classes="round-icon" HorizontalAlignment="Center" Margin="0,0,0,24">
+                        <TextBlock Text="&#x1F512;" FontSize="36" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                      <TextBlock Text="Choose a New Password" Classes="heading-xl" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                      <TextBlock Text="Enter your reset token and new password to finish resetting your account." Classes="muted" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,24" />
+                      <TextBlock Text="Email Address" Classes="small-muted" Margin="0,0,0,8" />
+                      <TextBox Text="{Binding Email}" Margin="0,0,0,20" />
+                      <TextBlock Text="Reset Token" Classes="small-muted" Margin="0,0,0,8" />
+                      <TextBox Text="{Binding ResetToken}" Margin="0,0,0,20" />
+                      <TextBlock Text="New Password" Classes="small-muted" Margin="0,0,0,8" />
+                      <TextBox Text="{Binding NewPassword}" PasswordChar="*" Margin="0,0,0,12" />
+                      <Grid Margin="0,0,0,8">
+                        <TextBlock Text="Password Strength" Classes="small-muted" />
+                        <TextBlock Text="Strong" Foreground="{DynamicResource StatusConnectedBrush}" HorizontalAlignment="Right" IsVisible="{Binding IsNewPasswordStrong}" Classes="small-muted" />
+                        <TextBlock Text="Weak" Foreground="{DynamicResource DestructiveBrush}" HorizontalAlignment="Right" IsVisible="{Binding IsNewPasswordWeak}" Classes="small-muted" />
+                      </Grid>
+                      <ProgressBar Value="{Binding NewPasswordStrengthScore}" Maximum="100" Height="4" Margin="0,0,0,8" />
+                      <TextBlock Text="{Binding PasswordPolicyText}" Classes="small-muted" TextWrapping="Wrap" Margin="0,0,0,20" />
+                      <TextBlock Text="Confirm Password" Classes="small-muted" Margin="0,0,0,8" />
+                      <TextBox Text="{Binding ConfirmPassword}" PasswordChar="*" Margin="0,0,0,20" />
+                      <TextBlock Text="Passwords do not match." Foreground="{DynamicResource DestructiveBrush}" FontSize="12" IsVisible="{Binding ShouldShowPasswordMismatch}" Margin="0,-12,0,16" />
+                      <Button Classes="primary" Content="Reset Password" Command="{Binding ResetPasswordCommand}" Margin="0,0,0,16" />
+                      <Button Content="Back to Login" Classes="ghost" Command="{Binding SelectAuthViewCommand}" CommandParameter="Login" HorizontalAlignment="Center" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ContentControl.ContentTemplate>
+              </ContentControl>
+
+              <ContentControl IsVisible="{Binding IsEmailConfirmationView}" Content="{Binding}">
+                <ContentControl.ContentTemplate>
+                  <DataTemplate>
+                    <StackPanel HorizontalAlignment="Stretch" MaxWidth="400">
+                      <Border Classes="round-icon" HorizontalAlignment="Center" Margin="0,0,0,24">
+                        <TextBlock Text="&#x2709;" FontSize="36" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                      </Border>
+                      <TextBlock Text="Check Your Email" Classes="heading-xl" HorizontalAlignment="Center" Margin="0,0,0,12" />
+                      <TextBlock Text="We've sent a confirmation link to your email address." Classes="muted" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,24" />
+                      <TextBox Text="{Binding Email}" PlaceholderText="Email address" IsReadOnly="True" Margin="0,0,0,16" />
+                      <TextBlock Text="{Binding StatusMessage}" Classes="muted" TextWrapping="Wrap" TextAlignment="Center" Margin="0,0,0,16" />
+                      <Grid ColumnDefinitions="*,*" ColumnSpacing="10" Margin="0,0,0,16">
+                        <Button Classes="primary" Content="I have verified my email" Command="{Binding CheckEmailConfirmationCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,12" />
+                        <Button Grid.Column="1" Classes="secondary" Content="Resend" Command="{Binding ResendConfirmationCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Padding="12,12" />
+                      </Grid>
+                      <Button Content="Back to Login" Classes="ghost" Command="{Binding SelectAuthViewCommand}" CommandParameter="Login" HorizontalAlignment="Center" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ContentControl.ContentTemplate>
+              </ContentControl>
+
+              <ContentControl IsVisible="{Binding IsTwoFactorView}" Content="{Binding}">
+                <ContentControl.ContentTemplate>
+                  <DataTemplate>
+                    <StackPanel HorizontalAlignment="Center" MaxWidth="400">
+                      <TextBlock Text="Two-Factor Authentication" Classes="heading-large" Margin="0,0,0,12" />
+                      <TextBlock Text="Enter the 6-digit code from your authenticator app." Classes="muted" TextWrapping="Wrap" Margin="0,0,0,24" />
+                      <TextBlock Text="Verification Code" Classes="small-muted" Margin="0,0,0,8" />
+                      <TextBox Text="{Binding TwoFactorCode}" HorizontalContentAlignment="Center" FontSize="20" FontWeight="SemiBold" MaxLength="6" Margin="0,0,0,16" />
+                      <Button Content="Use a recovery code" Classes="link" Command="{Binding ToggleRecoveryCodeEntryCommand}" HorizontalAlignment="Left" Margin="0,0,0,12" />
+                      <StackPanel IsVisible="{Binding ShowRecoveryCodeEntry}">
+                        <TextBlock Text="Recovery Code" Classes="small-muted" Margin="0,0,0,8" />
+                        <TextBox Text="{Binding RecoveryCode}" Margin="0,0,0,16" />
+                        <Button Classes="secondary" Content="Use recovery code" Command="{Binding VerifyRecoveryCodeCommand}" Margin="0,0,0,16" />
+                      </StackPanel>
+                      <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource DestructiveBrush}" TextWrapping="Wrap" FontSize="13" Margin="0,0,0,16" />
+                      <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+                        <Button Classes="secondary" Content="Cancel" Command="{Binding SelectAuthViewCommand}" CommandParameter="Login" />
+                        <Button Grid.Column="1" Classes="primary" Content="Verify" Command="{Binding VerifyTwoFactorCommand}" />
+                      </Grid>
+                    </StackPanel>
+                  </DataTemplate>
+                </ContentControl.ContentTemplate>
+              </ContentControl>
+            </StackPanel>
+          </ScrollViewer>
+        </Border>
+      </Grid>
+    </Grid>
+
+    <!-- Authenticated app shell -->
+    <Grid IsVisible="{Binding IsAuthenticated}" ColumnDefinitions="288,*">
+      <Border Grid.Column="0" Classes="sidebar">
+        <Grid RowDefinitions="Auto,Auto,*,Auto">
+          <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="24">
+            <StackPanel Orientation="Horizontal">
+              <Border Width="48" Height="48" Background="Transparent" ClipToBounds="True" CornerRadius="12">
+                <Image Source="avares://libreguard-vpn-linux/Resources/LibreGuard_logo_login_rounded12.png"
+                       Stretch="UniformToFill" />
+              </Border>
+              <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                <TextBlock Text="LibreGuard" Classes="brand" />
+                <TextBlock Text="VPN Protection" Classes="small-muted" />
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Grid.Row="1" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1" Padding="16">
+            <Border CornerRadius="12" Padding="16" BorderThickness="1" BorderBrush="{DynamicResource StatusDisconnectedBrush}" Background="{DynamicResource StatusDisconnectedLightBrush}">
+              <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                  <Border Width="40" Height="40" CornerRadius="20" Background="{DynamicResource PrimaryLightBrush}">
+                    <TextBlock Text="&#x1F6E1;" FontSize="18" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                  </Border>
+                  <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding ConnectionStateText}" FontSize="14" FontWeight="Medium" Foreground="{DynamicResource PrimaryBrush}" />
+                    <TextBlock Text="{Binding SidebarServerDisplayText}" FontSize="12" Foreground="{DynamicResource MutedForegroundBrush}" />
+                  </StackPanel>
+                </StackPanel>
+                <Border Margin="0,12,0,0" Padding="0,12,0,0" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding SelectedProtocol}" FontSize="12" Foreground="{DynamicResource MutedForegroundBrush}" />
+                    <TextBlock Grid.Column="1" Text="{Binding PlanText}" FontSize="12" Foreground="{DynamicResource MutedForegroundBrush}" />
+                  </Grid>
+                </Border>
+              </StackPanel>
+            </Border>
+          </Border>
+
+          <StackPanel Grid.Row="2" Margin="16" VerticalAlignment="Top">
+            <ToggleButton Classes="nav" IsChecked="{Binding IsDashboard}" Command="{Binding SelectSectionCommand}" CommandParameter="Dashboard" Margin="0,2">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="&#x1F6E1;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                <TextBlock Text="Dashboard" FontSize="14" FontWeight="Medium" />
+              </StackPanel>
+            </ToggleButton>
+            <ToggleButton Classes="nav" IsChecked="{Binding IsServers}" Command="{Binding SelectSectionCommand}" CommandParameter="Servers" Margin="0,2">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="&#x1F5A5;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                <TextBlock Text="Servers" FontSize="14" FontWeight="Medium" />
+              </StackPanel>
+            </ToggleButton>
+            <ToggleButton Classes="nav" IsChecked="{Binding IsStatistics}" Command="{Binding SelectSectionCommand}" CommandParameter="Statistics" Margin="0,2">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="&#x1F4C8;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                <TextBlock Text="Statistics" FontSize="14" FontWeight="Medium" />
+              </StackPanel>
+            </ToggleButton>
+            <ToggleButton Classes="nav" IsChecked="{Binding IsSettings}" Command="{Binding SelectSectionCommand}" CommandParameter="Settings" Margin="0,2">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="&#x2699;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                <TextBlock Text="Preferences" FontSize="14" FontWeight="Medium" />
+              </StackPanel>
+            </ToggleButton>
+            <ToggleButton Classes="nav" IsChecked="{Binding IsDevices}" Command="{Binding SelectSectionCommand}" CommandParameter="Devices" Margin="0,2">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="&#x1F4BB;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                <TextBlock Text="Devices" FontSize="14" FontWeight="Medium" />
+              </StackPanel>
+            </ToggleButton>
+            <ToggleButton Classes="nav" IsChecked="{Binding IsCertificates}" Command="{Binding SelectSectionCommand}" CommandParameter="Certificates" Margin="0,2">
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="&#x1F4DC;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                <TextBlock Text="Certificates" FontSize="14" FontWeight="Medium" />
+              </StackPanel>
+            </ToggleButton>
+          </StackPanel>
+
+          <Border Grid.Row="3" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Padding="16">
+            <StackPanel Spacing="8">
+              <Button Classes="destructive" Command="{Binding LogoutCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Left">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <TextBlock Text="&#x21AA;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                  <TextBlock Text="Sign Out" FontSize="14" FontWeight="Medium" />
+                </StackPanel>
+              </Button>
+            </StackPanel>
+          </Border>
+        </Grid>
+      </Border>
+
+      <Border Grid.Column="1" Background="{DynamicResource BackgroundBrush}">
+        <ScrollViewer x:Name="MainContentScrollViewer" VerticalScrollBarVisibility="Auto">
+          <StackPanel x:Name="MainContentHost" Margin="24" RenderTransformOrigin="0.5,0">
+            <Panel IsVisible="{Binding IsDashboard}">
+              <StackPanel>
+                <Grid Margin="0,0,0,16" ColumnDefinitions="*,Auto">
+                  <StackPanel>
+                    <TextBlock Text="Dashboard" Classes="heading-xl" Margin="0,0,0,8" />
+                    <TextBlock Text="Manage your VPN connection and monitor activity" Classes="muted" />
+                  </StackPanel>
+                  <Border Grid.Column="1" CornerRadius="16" Padding="16,8" Background="{DynamicResource SecondaryBrush}" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding PlanText}" FontSize="14" FontWeight="Medium" Foreground="{DynamicResource MutedForegroundBrush}" />
+                  </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="2*,24,*">
+                  <StackPanel Grid.Column="0">
+                    <Border Classes="card" Padding="16" Margin="0,0,0,16" IsVisible="{Binding IsSelectedServerCardVisible}">
+                      <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Border Classes="icon-badge" Width="56" Height="56">
+                          <TextBlock Text="{Binding SelectedServer.CountryFlag}" Classes="flag" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding SelectedServer.DisplayName}" Classes="heading" FontSize="16" />
+                          <TextBlock Text="{Binding SelectedServer.ServerHostname}" Classes="small-muted" Margin="0,4,0,0" />
+                        </StackPanel>
+                        <Button Grid.Column="2" Classes="ghost" Padding="8" Command="{Binding DiscardSelectedServerCommand}">
+                          <TextBlock Text="&#x2715;" FontSize="14" Foreground="{DynamicResource MutedForegroundBrush}" />
+                        </Button>
+                      </Grid>
+                    </Border>
+
+                    <Button Command="{Binding QuickConnectCommand}"
+                            Margin="0,0,0,16" Padding="0"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Stretch"
+                            IsVisible="{Binding IsQuickConnectCardVisible}">
+                      <Border Classes="card" Padding="16" Cursor="Hand" HorizontalAlignment="Stretch">
+                        <Grid>
+                          <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                          </Grid.ColumnDefinitions>
+                          <Border Classes="icon-badge" Width="56" Height="56">
+                            <TextBlock Text="&#x26A1;" FontSize="28" FontFamily="{StaticResource IconFontFamily}"
+                                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          </Border>
+                          <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Quick Connect" Classes="heading" FontSize="16" />
+                            <TextBlock Text="Automatically connect to the fastest available server"
+                                       Classes="small-muted" Margin="0,4,0,0" />
+                          </StackPanel>
+                          <TextBlock Grid.Column="2" Text="&#x2192;" FontSize="20" FontFamily="{StaticResource IconFontFamily}"
+                                     Foreground="{DynamicResource MutedForegroundBrush}"
+                                     VerticalAlignment="Center" />
+                        </Grid>
+                      </Border>
+                    </Button>
+
+                    <Border Classes="card-large" Margin="0,0,0,16" x:Name="ConnectionCardRoot">
+                      <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="14">
+                        <StackPanel Margin="0,0,0,6"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                          <TextBlock x:Name="ConnectionStatusTextBlock"
+                                     Text="{Binding ConnectionStatusText}"
+                                     FontSize="28"
+                                     FontWeight="SemiBold"
+                                     HorizontalAlignment="Center"
+                                     TextAlignment="Center"
+                                     Foreground="{DynamicResource PrimaryBrush}"
+                                     Margin="0,0,0,4" />
+                          <TextBlock Text="{Binding ConnectionMessage}"
+                                     FontSize="15"
+                                     HorizontalAlignment="Center"
+                                     TextAlignment="Center"
+                                     Foreground="{DynamicResource MutedForegroundBrush}"
+                                     TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <Grid Grid.Row="1"
+                              Width="220"
+                              Height="220"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              ClipToBounds="True">
+                          <shapes:Ellipse x:Name="ConnectionGlow"
+                                          Width="180"
+                                          Height="180"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          RenderTransformOrigin="0.5,0.5"
+                                          Fill="{DynamicResource ConnectionIdleLightBrush}"
+                                          Opacity="0.30" />
+                          <shapes:Ellipse x:Name="ConnectionRing"
+                                          Width="160"
+                                          Height="160"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          RenderTransformOrigin="0.5,0.5"
+                                          Fill="Transparent"
+                                          Stroke="{DynamicResource ConnectionIdleBrush}"
+                                          StrokeThickness="7"
+                                          StrokeDashArray="4,8"
+                                          Opacity="0.25" />
+                          <shapes:Ellipse x:Name="ConnectionOrb"
+                                          Width="104"
+                                          Height="104"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center"
+                                          RenderTransformOrigin="0.5,0.5"
+                                          Fill="{DynamicResource PrimaryBrush}" />
+                          <Border x:Name="ConnectionCore"
+                                  Width="84"
+                                  Height="84"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"
+                                  Background="{DynamicResource BackgroundBrush}"
+                                  BorderBrush="{DynamicResource BorderBrush}"
+                                  BorderThickness="1"
+                                  CornerRadius="42">
+                            <TextBlock x:Name="ConnectionShieldGlyph"
+                                       Text="🛡"
+                                       FontSize="26"
+                                       FontFamily="{StaticResource IconFontFamily}"
+                                       FontWeight="SemiBold"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="{Binding ConnectionShieldBrush}" />
+                          </Border>
+                        </Grid>
+
+                        <ProgressBar Grid.Row="2"
+                                     IsVisible="{Binding IsConnectionAttemptActive}"
+                                     Width="224"
+                                     Height="10"
+                                     IsIndeterminate="True"
+                                     HorizontalAlignment="Center"
+                                     Margin="0,2,0,0" />
+
+                        <Button Grid.Row="3"
+                                x:Name="ConnectionActionButton"
+                                Classes="primary-large"
+                                Content="{Binding ConnectionActionText}"
+                                Command="{Binding ConnectionActionCommand}"
+                                HorizontalAlignment="Center"
+                                Margin="0,4,0,0" />
+                      </Grid>
+                    </Border>
+
+                    <Grid ColumnDefinitions="*,16,*" RowDefinitions="Auto,16,Auto">
+                      <Border Classes="card" IsVisible="{Binding IsConnected}">
+                        <StackPanel>
+                          <StackPanel Orientation="Horizontal" Margin="0,0,0,16" Spacing="8">
+                            <TextBlock Text="&#x1F5A7;" FontSize="16" FontFamily="{StaticResource IconFontFamily}"
+                                       Foreground="{DynamicResource PrimaryBrush}" />
+                            <TextBlock Text="IP Addresses" Classes="subheading" />
+                          </StackPanel>
+                          <TextBlock Text="Your IP" Classes="small-muted" Margin="0,0,0,4" />
+                          <TextBlock Text="{Binding OriginalPublicIpText}"
+                                     FontSize="14"
+                                     Foreground="{DynamicResource MutedForegroundBrush}"
+                                     TextDecorations="Strikethrough"
+                                     IsVisible="{Binding ShouldStrikeOriginalIp}" />
+                          <TextBlock Text="{Binding OriginalPublicIpText}"
+                                     FontSize="14"
+                                     Foreground="{DynamicResource MutedForegroundBrush}"
+                                     IsVisible="{Binding ShouldShowOriginalIpPlain}" />
+                          <TextBlock Text="VPN IP" Classes="small-muted" Margin="0,12,0,4" />
+                          <TextBlock Text="{Binding VpnIpText}" FontSize="14" Foreground="{DynamicResource PrimaryBrush}" />
+                        </StackPanel>
+                      </Border>
+                      <Border Grid.Column="2" Classes="card" IsVisible="{Binding IsConnected}">
+                        <StackPanel>
+                          <StackPanel Orientation="Horizontal" Margin="0,0,0,16" Spacing="8">
+                            <TextBlock Text="&#x1F30D;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" Foreground="{DynamicResource PrimaryBrush}" />
+                            <TextBlock Text="Server Location" Classes="subheading" />
+                          </StackPanel>
+                          <TextBlock Text="City" Classes="small-muted" Margin="0,0,0,4" />
+                          <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="{Binding ConnectedServerFlag}" FontSize="14" />
+                            <TextBlock Text="{Binding FormattedConnectedLocationText}" FontSize="14" />
+                          </StackPanel>
+                          <TextBlock Text="Server" Classes="small-muted" Margin="0,12,0,4" />
+                          <TextBlock Text="{Binding ConnectedServer.ServerName}" FontSize="14" />
+                        </StackPanel>
+                      </Border>
+                      <Border Grid.Row="2" Grid.ColumnSpan="3" Classes="card" IsVisible="{Binding IsConnected}">
+                        <StackPanel>
+                          <StackPanel Orientation="Horizontal" Margin="0,0,0,16" Spacing="8">
+                            <TextBlock Text="&#x1F6E1;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" Foreground="{DynamicResource PrimaryBrush}" />
+                            <TextBlock Text="Protection Status" Classes="subheading" />
+                          </StackPanel>
+                          <UniformGrid Columns="2">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                              <TextBlock Text="✅" FontFamily="{StaticResource IconFontFamily}" FontSize="13" />
+                              <TextBlock Text="Private DNS" Classes="small-muted" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding AdBlockingEnabled}">
+                              <TextBlock Text="✅" FontFamily="{StaticResource IconFontFamily}" FontSize="13" />
+                              <TextBlock Text="Ad blocking" Classes="small-muted" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                              <TextBlock Text="✅" FontFamily="{StaticResource IconFontFamily}" FontSize="13" />
+                              <TextBlock Text="WebRTC leak protection" Classes="small-muted" />
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                              <TextBlock Text="✅" FontFamily="{StaticResource IconFontFamily}" FontSize="13" />
+                              <TextBlock Text="NetworkManager controlled" Classes="small-muted" />
+                            </StackPanel>
+                          </UniformGrid>
+                        </StackPanel>
+                      </Border>
+                    </Grid>
+                  </StackPanel>
+
+                  <StackPanel Grid.Column="2">
+                    <Border Classes="card" Margin="0,0,0,12" IsVisible="{Binding IsConnected}">
+                      <StackPanel>
+                        <TextBlock Text="Connection Time" Classes="subheading" Margin="0,0,0,16" />
+                        <TextBlock Text="{Binding ConnectionDurationText}" Classes="large-value" />
+                      </StackPanel>
+                    </Border>
+                    <Border Classes="card" Margin="0,0,0,12" IsVisible="{Binding IsConnected}">
+                      <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12" Spacing="12">
+                          <TextBlock Text="&#x1F4F6;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" />
+                          <TextBlock Text="Network Speed" Classes="subheading" />
+                        </StackPanel>
+                        <Grid RowDefinitions="Auto,8,Auto" ColumnDefinitions="*,Auto">
+                          <TextBlock Text="Download" Classes="small-muted" />
+                          <TextBlock Grid.Column="1" Text="{Binding LiveDownloadSpeedText}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource PrimaryBrush}" />
+                          <TextBlock Grid.Row="2" Text="Upload" Classes="small-muted" />
+                          <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding LiveUploadSpeedText}" FontSize="13" FontWeight="Medium" Foreground="{DynamicResource PrimaryBrush}" />
+                        </Grid>
+                      </StackPanel>
+                    </Border>
+                    <Border Classes="card" Margin="0,0,0,12" IsVisible="{Binding IsConnected}">
+                      <StackPanel>
+                        <TextBlock Text="Session Data" Classes="subheading" Margin="0,0,0,16" />
+                        <TextBlock Text="{Binding SessionDataTotalText}" Classes="large-value" />
+                        <TextBlock Text="Transferred in this tunnel session" Classes="small-muted" Margin="0,4,0,0" />
+                      </StackPanel>
+                    </Border>
+                    <Border Classes="card">
+                      <StackPanel>
+                        <TextBlock Text="Monthly Data Usage" Classes="subheading" Margin="0,0,0,16" />
+                        <Grid Margin="0,0,0,12" ColumnDefinitions="*,Auto">
+                          <TextBlock Text="Used" Classes="small-muted" />
+                          <TextBlock Grid.Column="1" Text="{Binding MonthlyUsageDisplayText}" FontSize="13" FontWeight="Medium" />
+                        </Grid>
+                        <ProgressBar Value="{Binding MonthlyUsagePercentage}" Maximum="100" Margin="0,0,0,12" IsVisible="{Binding ShowMonthlyUsageProgress}" />
+                        <Grid ColumnDefinitions="*,Auto">
+                          <TextBlock Text="{Binding PlanText}" FontSize="13" Foreground="{DynamicResource PrimaryBrush}" />
+                          <TextBlock Grid.Column="1" Text="{Binding ActiveDevicesText}" FontSize="13" Foreground="{DynamicResource MutedForegroundBrush}" />
+                        </Grid>
+                      </StackPanel>
+                    </Border>
+                  </StackPanel>
+                </Grid>
+              </StackPanel>
+            </Panel>
+
+            <Panel IsVisible="{Binding IsServers}">
+              <StackPanel>
+                <Grid Margin="0,0,0,32" ColumnDefinitions="*,Auto">
+                  <StackPanel>
+                    <TextBlock Text="Server Locations" Classes="heading-xl" Margin="0,0,0,8" />
+                    <TextBlock Text="{Binding VisibleServers.Count, StringFormat='Choose from {0} available servers'}" Classes="muted" />
+                  </StackPanel>
+                  <Border Grid.Column="1" Classes="segment-shell" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                      <RadioButton Classes="segment" GroupName="ServersVpnProtocol" Content="IKEv2/IPSec" IsChecked="{Binding IsIkev2Protocol}" Command="{Binding SelectProtocolCommand}" CommandParameter="IKEv2" />
+                      <RadioButton Classes="segment" GroupName="ServersVpnProtocol" IsChecked="{Binding IsOpenVpnProtocol}" Command="{Binding SelectProtocolCommand}" CommandParameter="OpenVPN">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <TextBlock Text="OpenVPN" />
+                          <TextBlock Text="&#x1F511;"
+                                     FontSize="12"
+                                     FontFamily="{StaticResource IconFontFamily}"
+                                     Foreground="{DynamicResource MutedForegroundBrush}"
+                                     IsVisible="{Binding IsFreePlan}" />
+                        </StackPanel>
+                      </RadioButton>
+                    </StackPanel>
+                  </Border>
+                </Grid>
+
+                <Grid Margin="0,0,0,24" ColumnDefinitions="*,16,Auto,8,Auto">
+                  <Grid>
+                    <TextBox Classes="icon-field" Text="{Binding ServerSearchText}" Watermark="Search servers, cities, or countries..." />
+                    <TextBlock Text="&#x1F50D;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" Foreground="{DynamicResource MutedForegroundBrush}" VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                  </Grid>
+                  <ComboBox Grid.Column="2" Width="160" ItemsSource="{Binding ServerSortModes}" SelectedItem="{Binding ServerSortMode}" />
+                  <Button Grid.Column="4" Classes="primary" Command="{Binding RefreshCommand}" Padding="12" Click="HandleServerRefreshButtonClick">
+                    <Grid x:Name="ServerRefreshIcon"
+                          Width="24"
+                          Height="24"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center"
+                          RenderTransformOrigin="50%,50%">
+                      <TextBlock Text="🔁"
+                                 FontFamily="{StaticResource IconFontFamily}"
+                                 FontSize="18"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center" />
+                    </Grid>
+                  </Button>
+                </Grid>
+
+                <StackPanel IsVisible="{Binding HasFavorites}" Margin="0,0,0,28">
+                  <StackPanel Orientation="Horizontal" Margin="0,0,0,16" Spacing="8">
+                    <TextBlock Text="⭐" FontFamily="{StaticResource IconFontFamily}" FontSize="16" Foreground="{DynamicResource PrimaryBrush}" />
+                    <TextBlock Text="Favourites" Classes="heading" />
+                  </StackPanel>
+                  <ItemsControl ItemsSource="{Binding FavoriteServers}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate>
+                        <UniformGrid Columns="2" />
+                      </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate>
+                        <Button Classes="ghost" Padding="0" HorizontalContentAlignment="Stretch" Command="{Binding DataContext.SelectServerCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                          <Border Classes="card" Padding="16" Margin="4">
+                            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                              <TextBlock Text="{Binding CountryFlag}" Classes="flag" />
+                              <StackPanel Grid.Column="1">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                  <TextBlock Text="{Binding DisplayName}" FontSize="14" FontWeight="Medium" />
+                                  <Border Classes="pro-badge" IsVisible="{Binding IsPremium}">
+                                    <TextBlock Text="PRO" Foreground="{DynamicResource PrimaryBrush}" FontSize="9" FontWeight="Bold" />
+                                  </Border>
+                                </StackPanel>
+                                <TextBlock Text="{Binding ServerName}" Classes="small-muted" />
+                                <TextBlock Text="{Binding PingText}" Foreground="{Binding PingBrush}" Classes="small-muted" Margin="0,4,0,0" />
+                              </StackPanel>
+                              <Button Grid.Column="2" Padding="6" Background="Transparent" Command="{Binding DataContext.ToggleFavoriteServerCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                                <TextBlock Text="⭐" FontFamily="{StaticResource IconFontFamily}" FontSize="18" Foreground="{DynamicResource PrimaryBrush}" />
+                              </Button>
+                              <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="Auto,16,*" Margin="0,12,0,0">
+                                <TextBlock Text="{Binding LoadText}" FontSize="13" Foreground="{DynamicResource PrimaryBrush}" />
+                                <ProgressBar Grid.Column="2" Value="{Binding LoadPercent}" Maximum="100" VerticalAlignment="Center" />
+                              </Grid>
+                            </Grid>
+                          </Border>
+                        </Button>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <Border Height="1" Background="{DynamicResource BorderBrush}" Margin="0,24,0,0" />
+                </StackPanel>
+
+                <TextBlock Text="All Servers" Classes="heading" Margin="0,0,0,16" />
+                <ItemsControl ItemsSource="{Binding ServerGroups}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <Border Classes="card-large" Padding="16" Margin="0,0,0,16">
+                        <StackPanel>
+                          <Grid Margin="0,0,0,16" ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Text="&#x1F310;" FontSize="24" FontFamily="{StaticResource IconFontFamily}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                            <StackPanel Grid.Column="1">
+                              <TextBlock Text="{Binding Country}" FontSize="16" FontWeight="SemiBold" />
+                              <TextBlock Text="{Binding Count, StringFormat='{}{0} servers'}" Classes="small-muted" />
+                            </StackPanel>
+                          </Grid>
+                          <ItemsControl ItemsSource="{Binding Servers}">
+                            <ItemsControl.ItemsPanel>
+                              <ItemsPanelTemplate>
+                                <UniformGrid Columns="2" />
+                              </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate>
+                                <Grid Margin="4">
+                                  <Button Classes="ghost" Padding="0" HorizontalContentAlignment="Stretch" Command="{Binding DataContext.SelectServerCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                                    <Border Classes="card" Padding="16">
+                                      <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                                        <TextBlock Text="{Binding CountryFlag}" Classes="flag" />
+                                        <StackPanel Grid.Column="1">
+                                          <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding DisplayName}" FontSize="14" FontWeight="Medium" />
+                                            <Border Classes="pro-badge" IsVisible="{Binding IsPremium}">
+                                              <TextBlock Text="PRO" Foreground="{DynamicResource PrimaryBrush}" FontSize="9" FontWeight="Bold" />
+                                            </Border>
+                                          </StackPanel>
+                                          <TextBlock Text="{Binding ServerName}" Classes="small-muted" />
+                                          <TextBlock Text="{Binding PingText}" Foreground="{Binding PingBrush}" Classes="small-muted" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                        <Button Grid.Column="2" Padding="6" Background="Transparent" Command="{Binding DataContext.ToggleFavoriteServerCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                                          <TextBlock Text="⭐" FontFamily="{StaticResource IconFontFamily}" FontSize="18" Foreground="{DynamicResource MutedForegroundBrush}" Opacity="0.6" />
+                                        </Button>
+                                        <Grid Grid.Row="1" Grid.ColumnSpan="3" ColumnDefinitions="Auto,16,*" Margin="0,12,0,0">
+                                          <TextBlock Text="{Binding LoadText}" FontSize="13" Foreground="{DynamicResource PrimaryBrush}" />
+                                          <ProgressBar Grid.Column="2" Value="{Binding LoadPercent}" Maximum="100" VerticalAlignment="Center" />
+                                        </Grid>
+                                      </Grid>
+                                    </Border>
+                                  </Button>
+                                </Grid>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Panel>
+
+            <Panel IsVisible="{Binding IsStatistics}">
+              <StackPanel>
+                <Grid Margin="0,0,0,24" ColumnDefinitions="*,Auto">
+                  <StackPanel>
+                    <TextBlock Text="Statistics Dashboard" Classes="heading-xl" Margin="0,0,0,8" />
+                    <TextBlock Text="Track total data, connections, session length, and traffic split over time" Classes="muted" />
+                  </StackPanel>
+                  <Border Grid.Column="1" Classes="segment-shell" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                      <ToggleButton Classes="segment" Content="Week" IsChecked="{Binding IsWeekStatisticsPeriod}" Command="{Binding SelectStatisticsPeriodCommand}" CommandParameter="Week" />
+                      <ToggleButton Classes="segment" Content="Month" IsChecked="{Binding IsMonthStatisticsPeriod}" Command="{Binding SelectStatisticsPeriodCommand}" CommandParameter="Month" />
+                      <ToggleButton Classes="segment" Content="Year" IsChecked="{Binding IsYearStatisticsPeriod}" Command="{Binding SelectStatisticsPeriodCommand}" CommandParameter="Year" />
+                    </StackPanel>
+                  </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="16" Margin="0,0,0,24">
+                  <Border Classes="card">
+                    <StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Classes="icon-badge"><TextBlock Text="&#x1F4CA;" FontSize="22" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                        <TextBlock Text="Total Data" Classes="muted" VerticalAlignment="Center" />
+                      </StackPanel>
+                      <TextBlock Text="{Binding StatisticsTotalDataText}" Classes="large-value" Margin="0,12,0,0" TextWrapping="Wrap" />
+                      <TextBlock Text="Transferred in the selected period" Classes="small-muted" Margin="0,4,0,0" />
+                    </StackPanel>
+                  </Border>
+                  <Border Grid.Column="1" Classes="card">
+                    <StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Classes="icon-badge"><TextBlock Text="&#x1F517;" FontSize="22" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                        <TextBlock Text="Connections" Classes="muted" VerticalAlignment="Center" />
+                      </StackPanel>
+                      <TextBlock Text="{Binding StatisticsConnectionsText}" Classes="large-value" Margin="0,12,0,0" />
+                      <TextBlock Text="Tracked device connections" Classes="small-muted" Margin="0,4,0,0" />
+                    </StackPanel>
+                  </Border>
+                  <Border Grid.Column="2" Classes="card">
+                    <StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Classes="icon-badge"><TextBlock Text="&#x23F1;" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                        <TextBlock Text="Avg session" Classes="muted" VerticalAlignment="Center" />
+                      </StackPanel>
+                      <TextBlock Text="{Binding StatisticsAverageSessionText}" Classes="large-value" Margin="0,12,0,0" />
+                      <TextBlock Text="Session length by date" Classes="small-muted" Margin="0,4,0,0" />
+                    </StackPanel>
+                  </Border>
+                  <Border Grid.Column="3" Classes="card">
+                    <StackPanel>
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Border Classes="icon-badge"><TextBlock Text="&#x2B07;" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                        <TextBlock Text="Avg download" Classes="muted" VerticalAlignment="Center" />
+                      </StackPanel>
+                      <TextBlock Text="{Binding StatisticsAverageDownloadText}" Classes="large-value" Margin="0,12,0,0" />
+                      <TextBlock Text="Per connection" Classes="small-muted" Margin="0,4,0,0" />
+                    </StackPanel>
+                  </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="2*,24,*" Margin="0,0,0,24">
+                  <Border Classes="card-large">
+                    <StackPanel>
+                      <TextBlock Text="Data Usage" Classes="heading" />
+                      <TextBlock Text="Download and upload usage per day" Classes="small-muted" Margin="0,4,0,20" />
+                      <ItemsControl ItemsSource="{Binding DailyTrafficRows}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <Grid ColumnDefinitions="56,*,*,Auto" ColumnSpacing="12" Margin="0,6">
+                              <TextBlock Text="{Binding Label}" Classes="small-muted" VerticalAlignment="Center" />
+                              <StackPanel Grid.Column="1">
+                                <Grid ColumnDefinitions="*,Auto">
+                                  <TextBlock Text="Download" Classes="small-muted" />
+                                  <TextBlock Grid.Column="1" Text="{Binding DownloadText}" Foreground="{DynamicResource PrimaryBrush}" FontWeight="Medium" />
+                                </Grid>
+                                <ProgressBar Value="{Binding DownloadPercentage}" Maximum="100" Margin="0,6,0,0" />
+                              </StackPanel>
+                              <StackPanel Grid.Column="2">
+                                <Grid ColumnDefinitions="*,Auto">
+                                  <TextBlock Text="Upload" Classes="small-muted" />
+                                  <TextBlock Grid.Column="1" Text="{Binding UploadText}" Foreground="{DynamicResource StatusConnectingBrush}" FontWeight="Medium" />
+                                </Grid>
+                                <ProgressBar Value="{Binding UploadPercentage}" Maximum="100" Foreground="{DynamicResource StatusConnectingBrush}" Margin="0,6,0,0" />
+                              </StackPanel>
+                              <TextBlock Grid.Column="3" Text="{Binding TotalText}" Classes="small-muted" VerticalAlignment="Center" />
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </Border>
+                  <Border Grid.Column="2" Classes="card-large">
+                    <StackPanel>
+                      <TextBlock Text="Server Usage" Classes="heading" />
+                      <TextBlock Text="Most used locations" Classes="small-muted" Margin="0,4,0,20" />
+                      <ItemsControl ItemsSource="{Binding ServerLoadChartBars}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <StackPanel Margin="0,6">
+                              <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{Binding Label}" Classes="subheading" />
+                                <TextBlock Grid.Column="1" Text="{Binding Caption}" Classes="muted" />
+                              </Grid>
+                              <ProgressBar Value="{Binding Percentage}" Maximum="100" Height="6" Margin="0,6,0,0" />
+                            </StackPanel>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="2*,24,*" Margin="0,0,0,24">
+                  <Border Classes="card-large">
+                    <StackPanel>
+                      <TextBlock Text="Connection Duration" Classes="heading" />
+                      <TextBlock Text="Session Length by date" Classes="small-muted" Margin="0,4,0,20" />
+                      <ItemsControl ItemsSource="{Binding ConnectionDurationRows}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate>
+                            <StackPanel Margin="0,6">
+                              <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Text="{Binding Label}" Classes="subheading" />
+                                <TextBlock Grid.Column="1" Text="{Binding DurationText}" Classes="muted" />
+                              </Grid>
+                              <ProgressBar Value="{Binding Percentage}" Maximum="100" Height="6" Margin="0,6,0,0" />
+                            </StackPanel>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                    </StackPanel>
+                  </Border>
+                  <Border Grid.Column="2">
+                    <StackPanel Spacing="12">
+                      <Border Classes="card" Background="{DynamicResource PrimaryLightBrush}">
+                        <StackPanel>
+                          <TextBlock Text="Total Download" Classes="subheading" Foreground="{DynamicResource PrimaryBrush}" />
+                          <TextBlock Text="{Binding StatisticsTotalDownloadText}" Classes="large-value" Margin="0,8,0,0" />
+                        </StackPanel>
+                      </Border>
+                      <Border Classes="card" Background="{DynamicResource MutedBrush}">
+                        <StackPanel>
+                          <TextBlock Text="Total Upload" Classes="subheading" Foreground="{DynamicResource PrimaryBrush}" />
+                          <TextBlock Text="{Binding StatisticsTotalUploadText}" Classes="large-value" Margin="0,8,0,0" />
+                        </StackPanel>
+                      </Border>
+                    </StackPanel>
+                  </Border>
+                </Grid>
+
+                <Border Classes="info-panel" Margin="0,8,0,0">
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                    <TextBlock Text="&#x2139;" FontSize="18" Foreground="{DynamicResource PrimaryBrush}" />
+                    <TextBlock Text="All statistics are stored locally on your device" Classes="small-muted" />
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Panel>
+
+            <Panel IsVisible="{Binding IsSettings}">
+              <StackPanel>
+                <StackPanel Margin="0,0,0,32">
+                  <TextBlock Text="Preferences" Classes="heading-xl" Margin="0,0,0,8" />
+                  <TextBlock Text="Configure your VPN preferences and security options" Classes="muted" />
+                </StackPanel>
+                <Grid ColumnDefinitions="2*,24,*">
+                  <StackPanel Grid.Column="0">
+                    <Border Padding="24"
+                            CornerRadius="16"
+                            Margin="0,0,0,24"
+                            BorderBrush="{DynamicResource PrimaryBrush}"
+                            BorderThickness="2"
+                            Background="{DynamicResource UpgradeBrush}"
+                            IsVisible="{Binding ShowUpgradeSettingsCard}">
+                      <StackPanel>
+                        <Grid Margin="0,0,0,16" ColumnDefinitions="Auto,*">
+                          <Border Width="56" Height="56" CornerRadius="12" Background="{DynamicResource PrimaryBrush}">
+                            <TextBlock Text="&#x2B50;" FontSize="28" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          </Border>
+                          <StackPanel Grid.Column="1" Margin="16,0,0,0">
+                            <TextBlock Text="Upgrade to Pro" Classes="heading" Margin="0,0,0,8" />
+                            <TextBlock Text="Unlock unlimited data, priority servers, and premium security features" Classes="muted" TextWrapping="Wrap" />
+                          </StackPanel>
+                        </Grid>
+                        <UniformGrid Columns="2" Margin="0,0,0,16">
+                          <TextBlock Text="• Unlimited bandwidth" Classes="small-muted" Margin="0,0,0,8" />
+                          <TextBlock Text="• Priority servers" Classes="small-muted" Margin="0,0,0,8" />
+                          <TextBlock Text="• Full OpenVPN support" Classes="small-muted" Margin="0,0,0,8" />
+                          <TextBlock Text="• Custom VPN configurations" Classes="small-muted" Margin="0,0,0,8" />
+                        </UniformGrid>
+                        <Grid HorizontalAlignment="Stretch">
+                          <Button Content="Upgrade Now"
+                                  Classes="primary"
+                                  Command="{Binding OpenUpgradeCommand}"
+                                  HorizontalAlignment="Stretch"
+                                  HorizontalContentAlignment="Center" />
+                        </Grid>
+                      </StackPanel>
+                    </Border>
+
+                    <Border Padding="24"
+                            CornerRadius="16"
+                            Margin="0,0,0,24"
+                            BorderBrush="{DynamicResource BorderBrush}"
+                            BorderThickness="1"
+                            Background="{DynamicResource BackgroundBrush}"
+                            IsVisible="{Binding IsProPlan}">
+                      <StackPanel>
+                        <Grid Margin="0,0,0,20" ColumnDefinitions="Auto,*,Auto">
+                          <Border Width="52" Height="52" CornerRadius="14" Background="{DynamicResource StatusConnectedLightBrush}">
+                            <TextBlock Text="✅"
+                                       FontFamily="{StaticResource IconFontFamily}"
+                                       FontSize="24"
+                                       FontWeight="Bold"
+                                       Foreground="{DynamicResource StatusConnectedBrush}"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center" />
+                          </Border>
+                          <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Pro is active" Classes="heading" Margin="0,0,0,6" />
+                            <TextBlock Text="Your account already has full access to premium features."
+                                       Classes="muted"
+                                       TextWrapping="Wrap" />
+                          </StackPanel>
+                          <Border Grid.Column="2"
+                                  Padding="12,6"
+                                  CornerRadius="12"
+                                  Background="{DynamicResource StatusConnectedLightBrush}"
+                                  VerticalAlignment="Top">
+                            <TextBlock Text="{Binding PlanText, StringFormat='{}{0} Plan'}"
+                                       FontSize="12"
+                                       FontWeight="SemiBold"
+                                       Foreground="{DynamicResource StatusConnectedBrush}" />
+                          </Border>
+                        </Grid>
+
+                        <UniformGrid Columns="4">
+                          <Border Background="{DynamicResource SecondaryBrush}" CornerRadius="12" Padding="14,12" Margin="0,0,8,0">
+                            <StackPanel>
+                              <TextBlock Text="Data" Classes="small-muted" Margin="0,0,0,4" />
+                              <TextBlock Text="Unlimited" FontSize="14" FontWeight="SemiBold" />
+                            </StackPanel>
+                          </Border>
+                          <Border Background="{DynamicResource SecondaryBrush}" CornerRadius="12" Padding="14,12" Margin="4,0">
+                            <StackPanel>
+                              <TextBlock Text="Protocol" Classes="small-muted" Margin="0,0,0,4" />
+                              <TextBlock Text="OpenVPN" FontSize="14" FontWeight="SemiBold" />
+                            </StackPanel>
+                          </Border>
+                          <Border Background="{DynamicResource SecondaryBrush}" CornerRadius="12" Padding="14,12" Margin="8,0,0,0">
+                            <StackPanel>
+                              <TextBlock Text="Access" Classes="small-muted" Margin="0,0,0,4" />
+                              <TextBlock Text="Priority servers" FontSize="14" FontWeight="SemiBold" />
+                            </StackPanel>
+                          </Border>
+                          <Border Background="{DynamicResource SecondaryBrush}" CornerRadius="12" Padding="14,12" Margin="8,0,0,0">
+                            <StackPanel>
+                              <TextBlock Text="Connections" Classes="small-muted" Margin="0,0,0,4" />
+                              <TextBlock Text="Max 3 Devices" FontSize="14" FontWeight="SemiBold" />
+                            </StackPanel>
+                          </Border>
+                        </UniformGrid>
+                      </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="Preferences" Classes="heading" Margin="0,0,0,16" />
+                    <Border Classes="card" Margin="0,0,0,24">
+                      <StackPanel>
+                        <Grid Margin="0,0,0,16" ColumnDefinitions="Auto,*">
+                          <Border Classes="icon-badge">
+                            <TextBlock Text="&#x1F3A8;" FontSize="22" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          </Border>
+                          <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Theme" Classes="subheading" />
+                            <TextBlock Text="Choose how LibreGuard follows your desktop appearance." Classes="small-muted" Margin="0,4,0,0" TextWrapping="Wrap" />
+                          </StackPanel>
+                        </Grid>
+
+                        <Border Classes="segment-shell" HorizontalAlignment="Center" Width="480">
+                          <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                            <ToggleButton Classes="segment"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Center"
+                                          IsChecked="{Binding IsSystemTheme}"
+                                          Command="{Binding SelectThemeCommand}"
+                                          CommandParameter="System">
+                              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="4">
+                                <TextBlock Text="🖥️" FontFamily="{StaticResource IconFontFamily}" FontSize="18" HorizontalAlignment="Center" />
+                                <TextBlock Text="System" HorizontalAlignment="Center" />
+                              </StackPanel>
+                            </ToggleButton>
+                            <ToggleButton Grid.Column="1"
+                                          Classes="segment"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Center"
+                                          IsChecked="{Binding IsLightTheme}"
+                                          Command="{Binding SelectThemeCommand}"
+                                          CommandParameter="Light">
+                              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="4">
+                                <TextBlock Text="☀" FontSize="18" HorizontalAlignment="Center" />
+                                <TextBlock Text="Light" HorizontalAlignment="Center" />
+                              </StackPanel>
+                            </ToggleButton>
+                            <ToggleButton Grid.Column="2"
+                                          Classes="segment"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Center"
+                                          IsChecked="{Binding IsDarkTheme}"
+                                          Command="{Binding SelectThemeCommand}"
+                                          CommandParameter="Dark">
+                              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="4">
+                                <TextBlock Text="🌙" FontFamily="{StaticResource IconFontFamily}" FontSize="18" HorizontalAlignment="Center" />
+                                <TextBlock Text="Dark" HorizontalAlignment="Center" />
+                              </StackPanel>
+                            </ToggleButton>
+                          </Grid>
+                        </Border>
+                      </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="Connection Settings" Classes="heading" Margin="0,0,0,16" />
+                    <StackPanel Margin="0,0,0,24" Spacing="12">
+                      <Border Classes="card">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <Border Classes="icon-badge">
+                            <TextBlock Text="&#x1F50C;" FontSize="22" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          </Border>
+                          <StackPanel Grid.Column="1" Margin="12,0,8,0" VerticalAlignment="Center">
+                            <TextBlock Text="Auto-Connect" Classes="subheading" />
+                            <TextBlock Text="Connect on system startup" Classes="small-muted" Margin="0,4,0,0" TextWrapping="Wrap" />
+                          </StackPanel>
+                          <ToggleSwitch Grid.Column="2" IsChecked="{Binding AutoConnect}" VerticalAlignment="Center" />
+                        </Grid>
+                      </Border>
+                      <Border Classes="card">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <Border Classes="icon-badge">
+                            <TextBlock Text="&#x1F6E1;" FontSize="22" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          </Border>
+                          <StackPanel Grid.Column="1" Margin="12,0,8,0" VerticalAlignment="Center">
+                            <TextBlock Text="Kill Switch" Classes="subheading" />
+                            <TextBlock Text="Block if VPN drops" Classes="small-muted" Margin="0,4,0,0" TextWrapping="Wrap" />
+                          </StackPanel>
+                          <ToggleSwitch Grid.Column="2" IsChecked="{Binding KillSwitch}" VerticalAlignment="Center" />
+                        </Grid>
+                      </Border>
+                      <Border Classes="card">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <Border Classes="icon-badge">
+                            <TextBlock Text="&#x1F6AB;" FontSize="22" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          </Border>
+                          <StackPanel Grid.Column="1" Margin="12,0,8,0" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                              <TextBlock Text="Ad Blocking" Classes="subheading" />
+                              <Border Classes="pro-badge" IsVisible="{Binding ShowAdBlockingProBadge}">
+                                <TextBlock Text="PRO" Foreground="{DynamicResource PrimaryBrush}" FontSize="9" FontWeight="Bold" />
+                              </Border>
+                            </StackPanel>
+                            <TextBlock Text="Block ads through LibreGuard's private DNS resolver" Classes="small-muted" Margin="0,4,0,0" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding AdBlockingStatusText}" Classes="small-muted" Margin="0,4,0,0" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding AdBlockingPropagationText}" Classes="small-muted" Margin="0,4,0,0" TextWrapping="Wrap" IsVisible="{Binding ShowAdBlockingPropagation}" />
+                          </StackPanel>
+                          <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Center" HorizontalAlignment="Right">
+                            <ToggleSwitch IsChecked="{Binding AdBlockingEnabled, Mode=TwoWay}" IsEnabled="{Binding CanToggleAdBlocking}" HorizontalAlignment="Right" />
+                            <Button Content="Upgrade"
+                                    Classes="ghost"
+                                    Command="{Binding OpenUpgradeCommand}"
+                                    IsVisible="{Binding ShowAdBlockingUpgradeAction}"
+                                    HorizontalAlignment="Right" />
+                          </StackPanel>
+                        </Grid>
+                      </Border>
+                      <Border Classes="card">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <Border Classes="icon-badge">
+                            <TextBlock Text="&#x1F4E3;" FontSize="22" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          </Border>
+                          <StackPanel Grid.Column="1" Margin="12,0,8,0" VerticalAlignment="Center">
+                            <TextBlock Text="Notifications" Classes="subheading" />
+                            <TextBlock Text="Show connection status alerts" Classes="small-muted" Margin="0,4,0,0" TextWrapping="Wrap" />
+                          </StackPanel>
+                          <ToggleSwitch Grid.Column="2" IsChecked="{Binding NotificationsEnabled}" VerticalAlignment="Center" />
+                        </Grid>
+                      </Border>
+                    </StackPanel>
+
+                    <TextBlock Text="Default Protocol" Classes="heading" Margin="0,0,0,16" />
+                    <Border Classes="card" Margin="0,0,0,24">
+                      <StackPanel>
+                        <Grid Margin="0,0,0,20" ColumnDefinitions="Auto,*">
+                          <Border Classes="icon-badge"><TextBlock Text="&#x1F6E1;" FontSize="22" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                          <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                            <TextBlock Text="VPN Protocol" Classes="subheading" />
+                            <TextBlock Text="Choose your tunnel" Classes="small-muted" Margin="0,4,0,0" />
+                          </StackPanel>
+                        </Grid>
+                        <Border Classes="segment-shell">
+                          <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                            <RadioButton Classes="segment"
+                                          GroupName="SettingsVpnProtocol"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Stretch"
+                                          IsChecked="{Binding IsIkev2Protocol}"
+                                          Command="{Binding SelectProtocolCommand}"
+                                          CommandParameter="IKEv2">
+                              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="IKEv2/IPSec" HorizontalAlignment="Center" />
+                                <TextBlock Text="Fast and stable" Classes="small-muted" HorizontalAlignment="Center" />
+                              </StackPanel>
+                            </RadioButton>
+                            <RadioButton Grid.Column="1"
+                                          Classes="segment"
+                                          GroupName="SettingsVpnProtocol"
+                                          HorizontalAlignment="Stretch"
+                                          HorizontalContentAlignment="Stretch"
+                                          IsChecked="{Binding IsOpenVpnProtocol}"
+                                          Command="{Binding SelectProtocolCommand}"
+                                          CommandParameter="OpenVPN">
+                              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="OpenVPN" HorizontalAlignment="Center" />
+                                <TextBlock Text="Pro access" Classes="small-muted" HorizontalAlignment="Center" />
+                              </StackPanel>
+                            </RadioButton>
+                          </Grid>
+                        </Border>
+                      </StackPanel>
+                    </Border>
+
+                    <TextBlock Text="Security Settings" Classes="heading" Margin="0,0,0,16" />
+                    <Border Classes="card" Margin="0,0,0,24">
+                      <Grid ColumnDefinitions="Auto,*,Auto">
+                        <Border Classes="icon-badge">
+                          <TextBlock Text="&#x1F512;" FontSize="22" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <StackPanel Grid.Column="1" Margin="12,0,8,0" VerticalAlignment="Center">
+                          <TextBlock Text="Two-Factor Authentication" Classes="subheading" />
+                          <TextBlock Text="Add an extra verification step to protect your account." Classes="small-muted" Margin="0,4,0,0" TextWrapping="Wrap" />
+                        </StackPanel>
+                        <ToggleSwitch Grid.Column="2" IsChecked="{Binding TwoFactorToggleEnabled}" VerticalAlignment="Center" />
+                      </Grid>
+                    </Border>
+                  </StackPanel>
+
+                  <StackPanel Grid.Column="2">
+                    <TextBlock Text="Support &amp; Legal" Classes="heading" Margin="0,0,0,16" />
+                    <StackPanel Margin="0,0,0,24" Spacing="12">
+                      <Button Classes="card-link" Click="HandleExternalLinkClick" Tag="https://libreguard.net/Support">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <TextBlock Text="&#x2753;" FontSize="16" Margin="0,0,12,0" />
+                          <TextBlock Grid.Column="1" Text="Help &amp; Support" Classes="subheading" />
+                          <TextBlock Grid.Column="2" Text="&gt;" FontSize="20" Foreground="{DynamicResource MutedForegroundBrush}" />
+                        </Grid>
+                      </Button>
+                      <Button Classes="card-link" Click="HandleExternalLinkClick" Tag="https://libreguard.net/Privacy">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <TextBlock Text="&#x1F512;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" Margin="0,0,12,0" />
+                          <TextBlock Grid.Column="1" Text="Privacy Policy" Classes="subheading" />
+                          <TextBlock Grid.Column="2" Text="&gt;" FontSize="20" Foreground="{DynamicResource MutedForegroundBrush}" />
+                        </Grid>
+                      </Button>
+                      <Button Classes="card-link" Click="HandleExternalLinkClick" Tag="https://libreguard.net/Terms">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <TextBlock Text="📄" FontSize="16" Margin="0,0,12,0" />
+                          <TextBlock Grid.Column="1" Text="Terms of Service" Classes="subheading" />
+                          <TextBlock Grid.Column="2" Text="&gt;" FontSize="20" Foreground="{DynamicResource MutedForegroundBrush}" />
+                        </Grid>
+                      </Button>
+                      <Button Classes="card-link" Click="HandleExternalLinkClick" Tag="https://github.com/LibreGuard-Developer/libreguard-vpn-linux">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <TextBlock Text="&#x1F4BB;" FontSize="16" FontFamily="{StaticResource IconFontFamily}" Margin="0,0,12,0" />
+                          <TextBlock Grid.Column="1" Text="Open Source Licenses" Classes="subheading" />
+                          <TextBlock Grid.Column="2" Text="&gt;" FontSize="20" Foreground="{DynamicResource MutedForegroundBrush}" />
+                        </Grid>
+                      </Button>
+                    </StackPanel>
+                    <Border Classes="card" Margin="0,0,0,24">
+                      <StackPanel>
+                        <TextBlock Text="Linux Requirements" Classes="subheading" Margin="0,0,0,16" />
+                        <TextBlock Text="NetworkManager, nmcli, OpenVPN, strongSwan, OpenSSL, and Polkit are required for full operation." Classes="small-muted" TextWrapping="Wrap" Margin="0,0,0,16" />
+                        <Button Classes="secondary" Content="Run dependency check" Command="{Binding RunPreflightCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,0,12" />
+                        <TextBlock Text="{Binding PreflightSummary}" Classes="small-muted" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </Border>
+                    <Border Classes="card" Margin="0,0,0,24">
+                      <StackPanel>
+                        <TextBlock Text="About LibreGuard" Classes="subheading" Margin="0,0,0,16" />
+                        <Grid Margin="0,0,0,8" ColumnDefinitions="*,Auto">
+                          <TextBlock Text="Plan" Classes="small-muted" />
+                          <TextBlock Grid.Column="1" Text="{Binding PlanText}" FontSize="13" FontWeight="Medium" />
+                        </Grid>
+                        <Grid Margin="0,0,0,8" ColumnDefinitions="*,Auto">
+                          <TextBlock Text="Platform" Classes="small-muted" />
+                          <TextBlock Grid.Column="1" Text="Linux Desktop" FontSize="13" FontWeight="Medium" />
+                        </Grid>
+                        <Grid Margin="0,0,0,8" ColumnDefinitions="*,Auto">
+                          <TextBlock Text="Version" Classes="small-muted" />
+                          <TextBlock Grid.Column="1" Text="{Binding AppVersion}" FontSize="13" FontWeight="Medium" />
+                        </Grid>
+                        <Grid Margin="0,0,0,8" ColumnDefinitions="*,Auto">
+                          <TextBlock Text="License" Classes="small-muted" />
+                          <TextBlock Grid.Column="1" Text="Open Source" FontSize="13" FontWeight="Medium" />
+                        </Grid>
+                        <Border BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0" Margin="0,8,0,0" Padding="0,12,0,0">
+                          <TextBlock Text="Privacy-focused VPN built with care" Classes="small-muted" HorizontalAlignment="Center" />
+                        </Border>
+                      </StackPanel>
+                    </Border>
+                    <TextBlock Text="Account" Classes="heading" Margin="0,0,0,16" />
+                    <Border Classes="card">
+                      <StackPanel>
+                        <Grid Margin="0,0,0,16" ColumnDefinitions="Auto,*">
+                          <Border Width="48" Height="48" CornerRadius="24" Background="{DynamicResource PrimaryLightBrush}">
+                            <TextBlock Text="&#x1F464;" FontSize="22" FontFamily="{StaticResource IconFontFamily}" Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                          </Border>
+                          <StackPanel Grid.Column="1" Margin="12,0,0,0" VerticalAlignment="Center" MinWidth="0">
+                            <TextBlock Text="{Binding AccountEmail}"
+                                       FontSize="14"
+                                       FontWeight="Medium"
+                                       Foreground="{DynamicResource ForegroundBrush}"
+                                       TextWrapping="Wrap"
+                                       MaxLines="2" />
+                            <TextBlock Text="{Binding PlanText, StringFormat='{}{0} Plan'}" Classes="small-muted" Margin="0,4,0,0" />
+                          </StackPanel>
+                        </Grid>
+                        <Button Content="Manage Account" Classes="secondary" Command="{Binding SelectSectionCommand}" CommandParameter="Devices" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+                      </StackPanel>
+                    </Border>
+                  </StackPanel>
+                </Grid>
+              </StackPanel>
+            </Panel>
+
+            <Panel IsVisible="{Binding IsUpgrade}">
+              <StackPanel>
+                <StackPanel Margin="0,0,0,32">
+                  <Button Classes="ghost" Command="{Binding GoBackToSettingsCommand}" HorizontalAlignment="Left" Margin="0,0,0,16">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="&#x2190;" FontFamily="{StaticResource IconFontFamily}" />
+                      <TextBlock Text="Back to Settings" />
+                    </StackPanel>
+                  </Button>
+                  <TextBlock Text="Upgrade to Pro" Classes="heading-xl" Margin="0,0,0,8" />
+                  <TextBlock Text="Choose your preferred payment method" Classes="muted" />
+                </StackPanel>
+
+                <StackPanel IsVisible="{Binding IsPaymentMethodSelectionVisible}" Margin="0,0,0,32">
+                  <TextBlock Text="Billing Period" Classes="heading" Margin="0,0,0,16" HorizontalAlignment="Center" />
+                  <Border Classes="segment-shell" HorizontalAlignment="Center">
+                    <Grid ColumnDefinitions="Auto,Auto" ColumnSpacing="4">
+                      <ToggleButton Classes="segment"
+                                    Content="Monthly ($5.99)"
+                                    IsChecked="{Binding IsMonthlyBilling}"
+                                    Command="{Binding SelectBillingCycleCommand}"
+                                    CommandParameter="monthly" />
+                      <ToggleButton Grid.Column="1"
+                                    Classes="segment"
+                                    IsChecked="{Binding IsYearlyBilling}"
+                                    Command="{Binding SelectBillingCycleCommand}"
+                                    CommandParameter="yearly">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                          <TextBlock Text="Yearly ($29.99)" />
+                          <Border Background="{DynamicResource StatusConnectedBrush}"
+                                  CornerRadius="10"
+                                  Padding="8,4"
+                                  VerticalAlignment="Center">
+                            <TextBlock Text="SAVE ~30%"
+                                       FontSize="10"
+                                       FontWeight="ExtraBold"
+                                       Foreground="White" />
+                          </Border>
+                        </StackPanel>
+                      </ToggleButton>
+                    </Grid>
+                  </Border>
+                </StackPanel>
+
+                <Border Classes="card"
+                        Background="{DynamicResource PrimaryLightBrush}"
+                        Margin="0,0,0,32"
+                        IsVisible="{Binding IsPaymentMethodSelectionVisible}">
+                  <StackPanel>
+                    <TextBlock Text="Pro Subscription Benefits"
+                               Classes="heading"
+                               Foreground="{DynamicResource PrimaryBrush}"
+                               Margin="0,0,0,24" />
+                    <UniformGrid Columns="2">
+                      <StackPanel Margin="0,0,16,20">
+                        <TextBlock Text="• 3 Active Devices" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="Connect up to 3 devices simultaneously" Classes="small-muted" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <StackPanel Margin="0,0,0,20">
+                        <TextBlock Text="• Unlimited Bandwidth" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="Unlimited bandwidth on Pro plan" Classes="small-muted" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <StackPanel Margin="0,0,16,20">
+                        <TextBlock Text="• Pro Server Access" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="Access to all VPN servers including Pro tier" Classes="small-muted" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <StackPanel Margin="0,0,0,20">
+                        <TextBlock Text="• Custom Configurations" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="Access LibreGuard VPN over any other 3rd party VPN app (Advanced OpenVPN and IKEv2)" Classes="small-muted" TextWrapping="Wrap" />
+                      </StackPanel>
+                      <StackPanel Margin="0,0,16,20">
+                        <Panel IsVisible="{Binding IsYearlyBilling}">
+                          <StackPanel>
+                            <TextBlock Text="• 365 Days Access" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="Full year of premium service" Classes="small-muted" TextWrapping="Wrap" />
+                          </StackPanel>
+                        </Panel>
+                        <Panel IsVisible="{Binding IsMonthlyBilling}">
+                          <StackPanel>
+                            <TextBlock Text="• 30 Days Access" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,4" />
+                            <TextBlock Text="Full month of premium service" Classes="small-muted" TextWrapping="Wrap" />
+                          </StackPanel>
+                        </Panel>
+                      </StackPanel>
+                      <StackPanel Margin="0,0,0,20">
+                        <TextBlock Text="• Priority Support" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,4" />
+                        <TextBlock Text="Faster response times for any issues" Classes="small-muted" TextWrapping="Wrap" />
+                      </StackPanel>
+                    </UniformGrid>
+                    <Border Background="{DynamicResource StatusConnectedLightBrush}"
+                            CornerRadius="8"
+                            Padding="12"
+                            Margin="0,8,0,0"
+                            IsVisible="{Binding IsYearlyBilling}">
+                      <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
+                        <TextBlock Text="&#x2605;" Foreground="{DynamicResource StatusConnectedBrush}" />
+                        <TextBlock Text="Best Value: Save ~30% compared to monthly billing" FontWeight="SemiBold" Foreground="{DynamicResource StatusConnectedBrush}" />
+                      </StackPanel>
+                    </Border>
+                  </StackPanel>
+                </Border>
+
+                <UniformGrid Columns="2" Margin="0,0,0,32" IsVisible="{Binding IsPaymentMethodSelectionVisible}">
+                  <Border Classes="card" Margin="0,0,8,0">
+                    <StackPanel>
+                      <TextBlock Text="Pay with Card" Classes="heading" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,8" />
+                      <TextBlock Text="Pay securely using your card" Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,16" />
+                      <Button Content="Continue to Card Payment" Classes="primary" Command="{Binding SelectCardCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+                    </StackPanel>
+                  </Border>
+                  <Border Classes="card" Margin="8,0,0,0">
+                    <StackPanel>
+                      <TextBlock Text="Monero (XMR)" Classes="heading" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,8" />
+                      <TextBlock Text="Pay anonymously with Monero" Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,16" />
+                      <Button Content="Pay with Monero" Classes="primary" Command="{Binding SelectMoneroCommand}" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+                    </StackPanel>
+                  </Border>
+                </UniformGrid>
+
+                <StackPanel IsVisible="{Binding IsCardSelected}">
+                  <Button Content="Change Payment Method"
+                          Classes="ghost"
+                          Command="{Binding SwitchPaymentMethodCommand}"
+                          HorizontalAlignment="Right"
+                          Margin="0,0,0,8" />
+                  <Border Classes="card" Margin="0,0,0,16">
+                    <StackPanel>
+                      <TextBlock Text="Card Checkout" Classes="heading" Margin="0,0,0,8" />
+                      <TextBlock Text="Complete secure card checkout. LibreGuard confirms your payment automatically." Classes="muted" TextWrapping="Wrap" Margin="0,0,0,16" />
+
+                      <Border Background="{DynamicResource PrimaryLightBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,16" IsVisible="{Binding IsCardCheckoutLinkVisible}">
+                        <StackPanel>
+                          <TextBlock Text="Checkout URL" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,8" />
+                          <TextBox Text="{Binding CheckoutUrl}"
+                                   IsReadOnly="True"
+                                   TextWrapping="Wrap"
+                                   BorderThickness="0"
+                                   Background="Transparent"
+                                   Padding="0"
+                                   Foreground="{DynamicResource PrimaryBrush}" />
+                        </StackPanel>
+                      </Border>
+
+                      <Button Content="Continue in Browser"
+                              Classes="secondary"
+                              Command="{Binding OpenCardCheckoutInBrowserCommand}"
+                              HorizontalAlignment="Left" />
+
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+
+                <StackPanel IsVisible="{Binding IsMoneroSelected}">
+                  <Button Content="Change Payment Method"
+                          Classes="ghost"
+                          Command="{Binding SwitchPaymentMethodCommand}"
+                          HorizontalAlignment="Right"
+                          Margin="0,0,0,8" />
+                  <Border Classes="card" Margin="0,0,0,16">
+                    <StackPanel>
+                      <TextBlock Text="Payment expires in:" Classes="muted" HorizontalAlignment="Center" />
+                      <TextBlock Text="{Binding TimeRemaining}" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource PrimaryBrush}" HorizontalAlignment="Center" Margin="0,8,0,16" />
+
+                      <TextBlock Text="Amount to send:" Classes="muted" HorizontalAlignment="Center" />
+                      <Grid HorizontalAlignment="Center" Margin="0,8,0,16" ColumnDefinitions="Auto,Auto">
+                        <TextBlock Text="{Binding MoneroPrice.XmrAmount, StringFormat='{}{0} XMR'}" FontSize="32" FontWeight="Bold" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="Copy" Classes="ghost" Command="{Binding CopyAmountCommand}" Margin="12,0,0,0" Padding="8,4" FontSize="12" />
+                      </Grid>
+                      <TextBlock Text="{Binding MoneroPrice.UsdAmount, StringFormat='{}{0:C} USD'}" Classes="muted" HorizontalAlignment="Center" Margin="0,0,0,24" />
+
+                      <TextBlock Text="Send exactly the amount shown above to this address:" Classes="muted" Margin="0,0,0,8" />
+                      <Border Background="{DynamicResource BackgroundBrush}" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,16">
+                        <Grid ColumnDefinitions="*,Auto">
+                          <TextBlock Text="{Binding MoneroInvoice.PaymentAddress}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                          <Button Grid.Column="1" Content="Copy" Classes="ghost" Command="{Binding CopyAddressCommand}" Margin="8,0,0,0" />
+                        </Grid>
+                      </Border>
+
+                      <TextBlock Text="Payment Status" Classes="heading" Margin="0,0,0,8" />
+                      <TextBlock Text="{Binding MoneroStatus.Status, TargetNullValue='Pending'}" FontWeight="SemiBold" Margin="0,0,0,8" />
+                      <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
+                          <TextBlock Text="Received:" Classes="muted" VerticalAlignment="Center" Margin="0,0,8,0" />
+                          <TextBlock Text="{Binding MoneroStatus.AmountReceived, StringFormat='{}{0} XMR', TargetNullValue='0 XMR'}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,16,0" VerticalAlignment="Center">
+                          <TextBlock Text="Required:" Classes="muted" VerticalAlignment="Center" Margin="0,0,8,0" />
+                          <TextBlock Text="{Binding MoneroStatus.AmountRequired, StringFormat='{}{0} XMR', TargetNullValue='0 XMR'}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                          <TextBlock Text="Shortfall:" Classes="muted" VerticalAlignment="Center" Margin="0,0,8,0" />
+                          <TextBlock Text="{Binding Shortfall, StringFormat='{}{0} XMR'}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </StackPanel>
+                      </StackPanel>
+
+                      <TextBlock Text="Blockchain Confirmations" Classes="heading" Margin="0,0,0,8" />
+                      <ProgressBar Minimum="0" Maximum="10" Value="{Binding MoneroStatus.Confirmations, TargetNullValue=0}" Height="12" Margin="0,0,0,8" Foreground="{DynamicResource PrimaryBrush}" Background="{DynamicResource PrimaryLightBrush}" />
+                      <TextBlock Text="{Binding MoneroConfirmationsText}" Classes="muted" HorizontalAlignment="Center" Margin="0,0,0,16" />
+
+                      <Button Content="Check Payment Status" Classes="primary" Command="{Binding CheckPaymentStatusCommand}" Margin="0,0,0,16" />
+
+                      <Border Background="{DynamicResource PrimaryLightBrush}" CornerRadius="8" Padding="16">
+                        <StackPanel>
+                          <TextBlock Text="Important Notes:" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}" Margin="0,0,0,8" />
+                          <TextBlock Text="• Transaction verification takes around 20 minutes." Foreground="{DynamicResource PrimaryBrush}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                          <TextBlock Text="• Do not close this page until payment is confirmed." Foreground="{DynamicResource PrimaryBrush}" TextWrapping="Wrap" Margin="0,0,0,4" />
+                          <TextBlock Text="• Send exactly the amount shown above." Foreground="{DynamicResource PrimaryBrush}" TextWrapping="Wrap" />
+                        </StackPanel>
+                      </Border>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </StackPanel>
+            </Panel>
+
+            <Panel IsVisible="{Binding IsDevices}">
+              <StackPanel>
+                <Grid Margin="0,0,0,16" ColumnDefinitions="*,Auto,Auto">
+                  <StackPanel>
+                    <TextBlock Text="Account Devices" Classes="heading-xl" Margin="0,0,0,8" />
+                    <TextBlock Text="Manage active devices for this subscription" Classes="muted" />
+                  </StackPanel>
+                  <Button Grid.Column="1" Classes="secondary" Content="Logout others" Command="{Binding RemoveOtherDevicesCommand}" Margin="0,0,8,0" />
+                  <Button Grid.Column="2" Classes="secondary" Content="Clean inactive" Command="{Binding RemoveInactiveDevicesCommand}" />
+                </Grid>
+                <ListBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <Border Classes="card" Margin="0,0,0,10">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                          <Border Classes="icon-badge"><TextBlock Text="&#x1F4BB;" FontSize="22" FontFamily="{StaticResource IconFontFamily}" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                          <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                            <TextBlock Text="{Binding DisplayName}" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="{Binding DisplayIdentifier}" Classes="small-muted" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding AppVersion}" Classes="small-muted" />
+                          </StackPanel>
+                          <TextBlock Grid.Column="2" Text="{Binding IsActive}" Foreground="{DynamicResource PrimaryBrush}" FontWeight="Medium" />
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                  <Button Classes="secondary" Content="Logout selected" Command="{Binding RemoveSelectedDeviceCommand}" />
+                  <Button Grid.Column="1" Classes="destructive" Content="Delete selected inactive" Command="{Binding DeleteSelectedDeviceCommand}" HorizontalContentAlignment="Center" />
+                </Grid>
+              </StackPanel>
+            </Panel>
+
+            <Panel IsVisible="{Binding IsCertificates}">
+              <StackPanel>
+                <Grid Margin="0,0,0,16" ColumnDefinitions="*,Auto">
+                  <StackPanel>
+                    <TextBlock Text="Certificates" Classes="heading-xl" Margin="0,0,0,8" />
+                    <TextBlock Text="Manual certificate downloads for third-party VPN apps. Available on Pro only." Classes="muted" TextWrapping="Wrap" />
+                  </StackPanel>
+                </Grid>
+                <Border Classes="card" IsVisible="{Binding ShowCertificatesUpgradePrompt}">
+                  <StackPanel HorizontalAlignment="Stretch">
+                    <TextBlock Text="Upgrade to Pro to unlock manual certificate downloads." Classes="heading" HorizontalAlignment="Center" TextAlignment="Center" Margin="0,0,0,8" />
+                    <TextBlock Text="Certificates and custom client configs are available only to Pro subscribers. Upgrade to view and download them here." Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="0,0,0,16" />
+                    <Button Content="View Pro plans" Classes="primary" Command="{Binding SelectSectionCommand}" CommandParameter="Upgrade" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+                  </StackPanel>
+                </Border>
+                <ListBox ItemsSource="{Binding Certificates}" SelectedItem="{Binding SelectedCertificate}" IsVisible="{Binding CanAccessCertificates}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate>
+                      <Border Classes="card" Margin="0,0,0,10">
+                        <StackPanel>
+                          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
+                            <Border Classes="icon-badge"><TextBlock Text="{Binding CountryFlag}" Classes="flag" HorizontalAlignment="Center" VerticalAlignment="Center" /></Border>
+                            <StackPanel Grid.Column="1">
+                              <TextBlock Text="{Binding DisplayName}" FontSize="18" FontWeight="SemiBold" />
+                              <TextBlock Text="{Binding Name}" Classes="small-muted" />
+                              <TextBlock Text="{Binding ServerIp}" Classes="small-muted" />
+                            </StackPanel>
+                            <TextBlock Grid.Column="2" Text="{Binding IsRevoked}" Foreground="{DynamicResource PrimaryBrush}" FontWeight="Medium" VerticalAlignment="Center" />
+                          </Grid>
+                          <Grid Margin="0,16,0,0" ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <Button Classes="secondary"
+                                    Content="Download config"
+                                    Command="{Binding DataContext.DownloadSelectedConfigCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}" />
+                            <Button Grid.Column="1"
+                                    Classes="secondary"
+                                    Content="Download certificate"
+                                    Command="{Binding DataContext.DownloadSelectedCertificateCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                    CommandParameter="{Binding}" />
+                          </Grid>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </StackPanel>
+            </Panel>
+
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+
+    <!-- WPF-style device limit modal -->
+    <Grid IsVisible="{Binding IsDeviceLimitModalVisible}" Background="#80000000">
+      <Border Classes="modal" Width="450" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <StackPanel>
+          <TextBlock Text="Device Limit Reached" Classes="heading-large" Margin="0,0,0,12" />
+          <TextBlock Text="{Binding DeviceLimitMessage}" Classes="muted" TextWrapping="Wrap" Margin="0,0,0,24" />
+          <ListBox ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}" MaxHeight="200" Margin="0,0,0,24">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <StackPanel Margin="8">
+                  <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding AppVersion}" Classes="small-muted" />
+                  <TextBlock Text="{Binding DisplayIdentifier}" Classes="small-muted" TextWrapping="Wrap" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource DestructiveBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,0,0,16" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="16">
+            <Button Classes="secondary" Content="Cancel" Command="{Binding DismissDeviceLimitCommand}" />
+            <Button Grid.Column="1" Classes="primary" Content="Remove Device" Command="{Binding RemoveSelectedDeviceCommand}" />
+          </Grid>
+        </StackPanel>
+      </Border>
+    </Grid>
+
+    <Canvas x:Name="RippleOverlayLayer" IsHitTestVisible="False" />
+  </Grid>
+</Window>
