@@ -422,6 +422,7 @@ stage_payload() {
   rm -rf -- "$PAYLOAD_ROOT"
   mkdir -p "$PAYLOAD_ROOT/opt/libreguard-vpn-linux"
   mkdir -p "$PAYLOAD_ROOT/usr/libexec/libreguard-vpn-linux"
+  mkdir -p "$PAYLOAD_ROOT/usr/lib/systemd/system"
   mkdir -p "$PAYLOAD_ROOT/usr/lib/NetworkManager/dispatcher.d/pre-up.d"
   mkdir -p "$PAYLOAD_ROOT/etc/NetworkManager/dispatcher.d/pre-up.d"
   mkdir -p "$PAYLOAD_ROOT/usr/share/applications"
@@ -436,6 +437,9 @@ stage_payload() {
     "$ROOT_DIR/packaging/linux/helpers/libreguard-ipv6-leak-protection" \
     "$PAYLOAD_ROOT/usr/libexec/libreguard-vpn-linux/libreguard-ipv6-leak-protection"
   install -m 0755 \
+    "$ROOT_DIR/packaging/linux/helpers/libreguard-vpn-recovery" \
+    "$PAYLOAD_ROOT/usr/libexec/libreguard-vpn-linux/libreguard-vpn-recovery"
+  install -m 0755 \
     "$ROOT_DIR/packaging/linux/dispatcher/90-libreguard-vpn-lifecycle" \
     "$PAYLOAD_ROOT/usr/lib/NetworkManager/dispatcher.d/90-libreguard-vpn-lifecycle"
   install -m 0755 \
@@ -447,6 +451,9 @@ stage_payload() {
   install -m 0644 \
     "$ROOT_DIR/packaging/linux/polkit/net.libreguard.vpn.linux.repair-ikev2-routing.policy" \
     "$PAYLOAD_ROOT/usr/share/polkit-1/actions/net.libreguard.vpn.linux.repair-ikev2-routing.policy"
+  install -m 0644 \
+    "$ROOT_DIR/packaging/linux/systemd/libreguard-vpn-recovery.service" \
+    "$PAYLOAD_ROOT/usr/lib/systemd/system/libreguard-vpn-recovery.service"
   install -m 0644 \
     "$ROOT_DIR/packaging/linux/libreguard-vpn-linux.desktop" \
     "$PAYLOAD_ROOT/usr/share/applications/libreguard-vpn-linux.desktop"
@@ -494,6 +501,8 @@ validate_deb_package() {
   grep -Eq "^-rwxr-xr-x[[:space:]]+root/root[[:space:]].*\\./opt/libreguard-vpn-linux/libreguard-vpn-linux$" <<< "$package_contents"
   grep -Eq "^-rwxr-xr-x[[:space:]]+root/root[[:space:]].*\\./usr/libexec/libreguard-vpn-linux/libreguard-ikev2-route-repair$" <<< "$package_contents"
   grep -Eq "^-rwxr-xr-x[[:space:]]+root/root[[:space:]].*\\./usr/libexec/libreguard-vpn-linux/libreguard-ipv6-leak-protection$" <<< "$package_contents"
+  grep -Eq "^-rwxr-xr-x[[:space:]]+root/root[[:space:]].*\\./usr/libexec/libreguard-vpn-linux/libreguard-vpn-recovery$" <<< "$package_contents"
+  grep -Eq "^-rw-r--r--[[:space:]]+root/root[[:space:]].*\\./usr/lib/systemd/system/libreguard-vpn-recovery\\.service$" <<< "$package_contents"
   grep -Eq "^-rwxr-xr-x[[:space:]]+root/root[[:space:]].*\\./usr/lib/NetworkManager/dispatcher\\.d/90-libreguard-vpn-lifecycle$" <<< "$package_contents"
   grep -Eq "^-rwxr-xr-x[[:space:]]+root/root[[:space:]].*\\./usr/lib/NetworkManager/dispatcher\\.d/pre-up\\.d/90-libreguard-vpn-lifecycle$" <<< "$package_contents"
   grep -Eq "^-rwxr-xr-x[[:space:]]+root/root[[:space:]].*\\./etc/NetworkManager/dispatcher\\.d/pre-up\\.d/90-libreguard-vpn-lifecycle$" <<< "$package_contents"
@@ -561,6 +570,8 @@ validate_rpm_package() {
   grep -Fxq "/usr/share/icons/hicolor/256x256/apps/libreguard-vpn-linux.png" <<< "$package_contents"
   grep -Fxq "/usr/libexec/libreguard-vpn-linux/libreguard-ikev2-route-repair" <<< "$package_contents"
   grep -Fxq "/usr/libexec/libreguard-vpn-linux/libreguard-ipv6-leak-protection" <<< "$package_contents"
+  grep -Fxq "/usr/libexec/libreguard-vpn-linux/libreguard-vpn-recovery" <<< "$package_contents"
+  grep -Fxq "/usr/lib/systemd/system/libreguard-vpn-recovery.service" <<< "$package_contents"
   grep -Fxq "/usr/lib/NetworkManager/dispatcher.d/90-libreguard-vpn-lifecycle" <<< "$package_contents"
   grep -Fxq "/usr/lib/NetworkManager/dispatcher.d/pre-up.d/90-libreguard-vpn-lifecycle" <<< "$package_contents"
   grep -Fxq "/etc/NetworkManager/dispatcher.d/pre-up.d/90-libreguard-vpn-lifecycle" <<< "$package_contents"
@@ -572,6 +583,8 @@ validate_rpm_package() {
   grep -Eq "^/opt/libreguard-vpn-linux/libreguard-vpn-linux[[:space:]]+root[[:space:]]+root[[:space:]]+-rwxr-xr-x$" <<< "$package_metadata"
   grep -Eq "^/usr/libexec/libreguard-vpn-linux/libreguard-ikev2-route-repair[[:space:]]+root[[:space:]]+root[[:space:]]+-rwxr-xr-x$" <<< "$package_metadata"
   grep -Eq "^/usr/libexec/libreguard-vpn-linux/libreguard-ipv6-leak-protection[[:space:]]+root[[:space:]]+root[[:space:]]+-rwxr-xr-x$" <<< "$package_metadata"
+  grep -Eq "^/usr/libexec/libreguard-vpn-linux/libreguard-vpn-recovery[[:space:]]+root[[:space:]]+root[[:space:]]+-rwxr-xr-x$" <<< "$package_metadata"
+  grep -Eq "^/usr/lib/systemd/system/libreguard-vpn-recovery\\.service[[:space:]]+root[[:space:]]+root[[:space:]]+-rw-r--r--$" <<< "$package_metadata"
   grep -Eq "^/usr/share/polkit-1/actions/net\\.libreguard\\.vpn\\.linux\\.repair-ikev2-routing\\.policy[[:space:]]+root[[:space:]]+root[[:space:]]+-rw-r--r--$" <<< "$package_metadata"
   grep -Eq "^/usr/share/selinux/packages/libreguard/libreguard_ikev2_fedora\\.cil[[:space:]]+root[[:space:]]+root[[:space:]]+-rw-r--r--$" <<< "$package_metadata"
 

@@ -69,6 +69,8 @@ install -D -m 0644 %{selinux_policy_source} %{buildroot}/usr/share/selinux/packa
 %dir /usr/libexec/libreguard-vpn-linux
 %attr(0755,root,root) /usr/libexec/libreguard-vpn-linux/libreguard-ikev2-route-repair
 %attr(0755,root,root) /usr/libexec/libreguard-vpn-linux/libreguard-ipv6-leak-protection
+%attr(0755,root,root) /usr/libexec/libreguard-vpn-linux/libreguard-vpn-recovery
+%attr(0644,root,root) /usr/lib/systemd/system/libreguard-vpn-recovery.service
 %attr(0755,root,root) /usr/lib/NetworkManager/dispatcher.d/90-libreguard-vpn-lifecycle
 %attr(0755,root,root) /usr/lib/NetworkManager/dispatcher.d/pre-up.d/90-libreguard-vpn-lifecycle
 %attr(0755,root,root) /etc/NetworkManager/dispatcher.d/pre-up.d/90-libreguard-vpn-lifecycle
@@ -90,6 +92,11 @@ leak_protection_helper="/usr/libexec/libreguard-vpn-linux/libreguard-ipv6-leak-p
 if [ -x "$leak_protection_helper" ]; then
     # Safe on upgrades: the helper refuses cleanup while a LibreGuard VPN is active.
     "$leak_protection_helper" remove >/dev/null 2>&1 || true
+fi
+
+if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+    systemctl daemon-reload || true
+    systemctl enable libreguard-vpn-recovery.service || true
 fi
 
 netplan_file="/etc/netplan/01-network-manager-all.yaml"
@@ -145,6 +152,9 @@ fi
 
 %preun
 if [ "$1" -eq 0 ]; then
+    if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+        systemctl disable libreguard-vpn-recovery.service || true
+    fi
     if command -v semodule >/dev/null 2>&1 \
         && semodule -l 2>/dev/null | grep -q '^libreguard_ikev2_fedora\([[:space:]]\|$\)'; then
         if ! semodule -r libreguard_ikev2_fedora; then
@@ -184,6 +194,10 @@ if [ "$1" -eq 0 ]; then
 fi
 
 %postun
+if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+    systemctl daemon-reload || true
+fi
+
 if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database /usr/share/applications || true
 fi

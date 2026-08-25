@@ -59,6 +59,9 @@ has_browser_doh_policy() {
 
 case "${1:-remove}" in
     remove|deconfigure)
+        if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+            systemctl disable libreguard-vpn-recovery.service || true
+        fi
         ipv6_status=0
         canary_status=0
         browser_policy_status=0

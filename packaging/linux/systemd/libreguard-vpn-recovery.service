@@ -1,0 +1,13 @@
+[Unit]
+Description=Recover stale LibreGuard VPN profiles before normal network use
+Wants=NetworkManager.service
+After=NetworkManager.service dbus.service
+Before=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/libreguard-vpn-linux/libreguard-vpn-recovery
+TimeoutStartSec=30
+
+[Install]
+WantedBy=multi-user.target

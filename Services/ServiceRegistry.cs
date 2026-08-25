@@ -47,10 +47,18 @@ public static class ServiceRegistry
             File.Exists,
             verifyBrowserDohProtection: true,
             settingsStore: sp.GetRequiredService<ISettingsStore>()));
+        services.AddSingleton<IVpnSessionGuardian, VpnSessionGuardian>();
         services.AddSingleton<ITunnelTrafficMonitor, TunnelTrafficMonitor>();
         services.AddSingleton<IVpnProfileConverter, OpenVpnProfileConverter>();
         services.AddSingleton<IVpnProfileConverter, IkeV2ProfileConverter>();
-        services.AddSingleton<IVpnConnectionService, VpnConnectionService>();
+        services.AddSingleton<IVpnConnectionService>(sp => new VpnConnectionService(
+            sp.GetRequiredService<IBackendApiClient>(),
+            sp.GetRequiredService<IAuthSessionService>(),
+            sp.GetServices<IVpnProfileConverter>(),
+            sp.GetRequiredService<ILinuxPreflightService>(),
+            sp.GetRequiredService<INetworkManagerClient>(),
+            sp.GetRequiredService<IPublicIpResolver>(),
+            sp.GetRequiredService<IVpnSessionGuardian>()));
         services.AddSingleton<MainViewModel>();
         services.AddHttpClient("BackendApi", client =>
         {

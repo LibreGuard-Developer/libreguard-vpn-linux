@@ -1,6 +1,7 @@
 *.sh text eol=lf
 packaging/linux/helpers/* text eol=lf
 packaging/linux/dispatcher/* text eol=lf
+packaging/linux/systemd/* text eol=lf
 packaging/linux/deb/postinst text eol=lf
 packaging/linux/deb/postrm text eol=lf
 packaging/linux/deb/prerm text eol=lf

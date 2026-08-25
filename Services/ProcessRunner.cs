@@ -129,6 +129,7 @@ public sealed class ProcessRunner : IProcessRunner
             "restorecon" => "/usr/bin/restorecon",
             "secret-tool" => "/usr/bin/secret-tool",
             "setfacl" => "/usr/bin/setfacl",
+            "systemd-run" => "/usr/bin/systemd-run",
             "xdg-open" => "/usr/bin/xdg-open",
             _ => fileName
         };

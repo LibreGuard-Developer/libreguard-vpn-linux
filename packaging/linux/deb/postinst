@@ -99,6 +99,10 @@ repair_netplan_permissions() {
 case "${1:-configure}" in
     configure|triggered)
         cleanup_stale_leak_protection
+        if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
+            systemctl daemon-reload || true
+            systemctl enable libreguard-vpn-recovery.service || true
+        fi
         repair_netplan_permissions
         update_desktop_integrations
         install_desktop_shortcuts

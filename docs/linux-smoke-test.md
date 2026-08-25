@@ -251,6 +251,39 @@ dig @10.254.0.53 example.com AAAA
 9. With a Pro account, leave Ad Blocking off and confirm the same regular result. Enable it while the VPN remains connected, wait the propagation interval shown by the app, and confirm the domain changes to the active blocklist policy's blocked response. Disable it and confirm regular resolution returns without reconnecting.
 10. On a coordinated staging node, query a public resolver address over TCP and UDP port 53 and confirm the VPN server intercepts the traffic. Stop the regular resolver and confirm DNS fails instead of falling back to a public resolver.
 
+## Unexpected-exit DNS recovery
+
+Run these cases on disposable Ubuntu and Fedora VMs after validating the normal private-DNS flow above. They verify recovery only; they must not change the private resolver, routing domain, or no-leak requirements while a VPN is connected.
+
+1. Confirm the boot recovery service is installed and enabled:
+
+   ```bash
+   systemctl is-enabled libreguard-vpn-recovery.service
+   systemctl cat libreguard-vpn-recovery.service
+   ```
+
+2. Connect with OpenVPN, identify the LibreGuard desktop PID, then terminate only that PID with `kill -9`. Within five seconds, confirm that the owned profile is inactive and absent, no resolver link owns `~.` with `10.254.0.53`, and the physical resolver answers normally:
+
+   ```bash
+   nmcli -t -f NAME,TYPE connection show --active | grep '^libreguard-' && exit 1 || true
+   nmcli -t -f NAME,TYPE connection show | grep '^libreguard-' && exit 1 || true
+   resolvectl status
+   dig google.com
+   ```
+
+3. Repeat step 2 with IKEv2, and once while activation is still in progress. Confirm the transient IPv6/browser protections are removed after the profile is down.
+
+4. Connect a LibreGuard VPN, force the VM off, boot it, and do not launch LibreGuard. Confirm the boot recovery journal reports completion, no LibreGuard profile remains, and the physical resolver works:
+
+   ```bash
+   journalctl -b -u libreguard-vpn-recovery.service --no-pager
+   nmcli -t -f NAME,TYPE connection show | grep '^libreguard-' && exit 1 || true
+   resolvectl status
+   dig google.com
+   ```
+
+5. Repeat with an unrelated VPN profile present; it must remain untouched.
+
 ## Root YE Regression
 
 Repeat the IKEv2 flow with one known server that presents a Let's Encrypt ECDSA chain rooted at Root YE.

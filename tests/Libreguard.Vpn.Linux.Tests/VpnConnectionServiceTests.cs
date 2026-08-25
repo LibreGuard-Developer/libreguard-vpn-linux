@@ -117,6 +117,25 @@ public sealed class VpnConnectionServiceTests
     }
 
     [Fact]
+    public async Task ConnectAsync_StartsGuardianAfterImportBeforeActivation()
+    {
+        var backend = CreateReadyBackend();
+        var network = new FakeNetworkManager();
+        var guardian = new FakeSessionGuardian(network.LifecycleEvents);
+        var service = CreateService(backend, network, guardian: guardian);
+
+        await service.ConnectAsync(backend.Server, VpnProtocol.Ikev2, CancellationToken.None);
+
+        var importIndex = network.LifecycleEvents.IndexOf("import");
+        var guardianIndex = network.LifecycleEvents.IndexOf("guardian-start");
+        var activationIndex = network.LifecycleEvents.IndexOf("activate");
+        Assert.True(importIndex >= 0);
+        Assert.True(importIndex < guardianIndex);
+        Assert.True(guardianIndex < activationIndex);
+        Assert.Equal(["libreguard-ikev2-nl-1"], guardian.StartedProfiles);
+    }
+
+    [Fact]
     public async Task DisconnectAsync_CleansLibreGuardStateWithoutActiveInMemoryProfile()
     {
         var backend = CreateReadyBackend();
@@ -229,25 +248,59 @@ public sealed class VpnConnectionServiceTests
         Assert.Equal(1, network.CleanupLibreGuardArtifactsCalls);
     }
 
+    [Fact]
+    public async Task DisconnectAsync_CompletesGuardianOnlyAfterNetworkCleanup()
+    {
+        var backend = CreateReadyBackend();
+        var network = new FakeNetworkManager();
+        var guardian = new FakeSessionGuardian(network.LifecycleEvents);
+        var service = CreateService(backend, network, guardian: guardian);
+
+        await service.ConnectAsync(backend.Server, VpnProtocol.Ikev2, CancellationToken.None);
+        network.LifecycleEvents.Clear();
+
+        await service.DisconnectAsync(CancellationToken.None);
+
+        Assert.Equal(1, guardian.CompleteCalls);
+        Assert.Equal("cleanup-artifacts", network.LifecycleEvents[0]);
+        Assert.Equal("guardian-complete", network.LifecycleEvents[1]);
+    }
+
     private static FakeBackend CreateReadyBackend()
         => new()
         {
             ConfigResponse = new VpnConfigResponse(true, "IKEv2", "NL", "10.0.0.1", "cert", "config", null, null, "device", null)
         };
 
-    private static VpnConnectionService CreateService(FakeBackend backend, FakeNetworkManager network, string? resolvedIp = "198.51.100.15")
+    private static VpnConnectionService CreateService(
+        FakeBackend backend,
+        FakeNetworkManager network,
+        string? resolvedIp = "198.51.100.15",
+        IVpnSessionGuardian? guardian = null)
     {
         var secrets = new InMemorySecretStore();
         secrets.SetAsync("jwt-token", "token", CancellationToken.None).GetAwaiter().GetResult();
         secrets.SetAsync("refresh-token", "refresh", CancellationToken.None).GetAwaiter().GetResult();
         var deviceIdentity = new FakeDeviceIdentityService();
+        if (guardian is null)
+        {
+            return new VpnConnectionService(
+                backend,
+                new AuthSessionService(backend, deviceIdentity, secrets),
+                [new FakeConverter()],
+                new FakePreflightService(),
+                network,
+                new FakePublicIpResolver(resolvedIp));
+        }
+
         return new VpnConnectionService(
             backend,
             new AuthSessionService(backend, deviceIdentity, secrets),
             [new FakeConverter()],
             new FakePreflightService(),
             network,
-            new FakePublicIpResolver(resolvedIp));
+            new FakePublicIpResolver(resolvedIp),
+            guardian);
     }
 
     private sealed class FakeBackend : IBackendApiClient
@@ -368,6 +421,7 @@ public sealed class VpnConnectionServiceTests
         public List<string> DeactivatedProfiles { get; } = [];
         public List<string> DeletedProfiles { get; } = [];
         public List<string> CleanedArtifactProfiles { get; } = [];
+        public List<string> LifecycleEvents { get; } = [];
         public Exception? ImportException { get; init; }
         public Exception? ActivateException { get; init; }
         public Task EnsureAvailableAsync(CancellationToken cancellationToken)
@@ -379,6 +433,7 @@ public sealed class VpnConnectionServiceTests
         public Task ImportIkeV2Async(VpnProfile profile, CancellationToken cancellationToken)
         {
             ImportIkeV2Called = true;
+            LifecycleEvents.Add("import");
             if (ImportException is not null)
             {
                 throw ImportException;
@@ -388,6 +443,7 @@ public sealed class VpnConnectionServiceTests
         }
         public Task ActivateAsync(VpnProfile profile, CancellationToken cancellationToken)
         {
+            LifecycleEvents.Add("activate");
             if (ActivateException is not null)
             {
                 throw ActivateException;
@@ -416,6 +472,7 @@ public sealed class VpnConnectionServiceTests
         public Task CleanupLibreGuardArtifactsAsync(string? excludeProfileName, CancellationToken cancellationToken)
         {
             CleanupLibreGuardArtifactsCalls++;
+            LifecycleEvents.Add("cleanup-artifacts");
             return Task.CompletedTask;
         }
         public Task DeleteLibreGuardProfileAsync(string profileName, CancellationToken cancellationToken)
@@ -429,5 +486,31 @@ public sealed class VpnConnectionServiceTests
             return Task.CompletedTask;
         }
         public Task<string?> GetActiveDeviceNameAsync(string profileName, CancellationToken cancellationToken) => Task.FromResult<string?>("lgvpn0");
+    }
+
+    private sealed class FakeSessionGuardian(List<string> lifecycleEvents) : IVpnSessionGuardian
+    {
+        private bool _active;
+        public List<string> StartedProfiles { get; } = [];
+        public int CompleteCalls { get; private set; }
+
+        public Task StartAsync(VpnProfile profile, CancellationToken cancellationToken)
+        {
+            StartedProfiles.Add(profile.ProfileName);
+            _active = true;
+            lifecycleEvents.Add("guardian-start");
+            return Task.CompletedTask;
+        }
+
+        public Task CompleteAsync(CancellationToken cancellationToken)
+        {
+            if (_active)
+            {
+                CompleteCalls++;
+                _active = false;
+                lifecycleEvents.Add("guardian-complete");
+            }
+            return Task.CompletedTask;
+        }
     }
 }

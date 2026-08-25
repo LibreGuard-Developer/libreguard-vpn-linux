@@ -247,7 +247,9 @@
     <None Include="install-linux-privileges.sh" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="packaging\linux\helpers\libreguard-ikev2-route-repair" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="packaging\linux\helpers\libreguard-ipv6-leak-protection" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="packaging\linux\helpers\libreguard-vpn-recovery" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="packaging\linux\dispatcher\90-libreguard-vpn-lifecycle" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="packaging\linux\systemd\libreguard-vpn-recovery.service" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Include="packaging\linux\polkit\net.libreguard.vpn.linux.repair-ikev2-routing.policy" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <AvaloniaResource Include="Resources\LibreGuard_logo.png" />
     <AvaloniaResource Include="Resources\LibreGuard_logo_login_rounded12.png" />

@@ -1,0 +1,148 @@
+#!/bin/sh
+set -eu
+
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+LC_ALL=C
+export PATH LC_ALL
+
+NMCLI=/usr/bin/nmcli
+LEAK_PROTECTION_HELPER=/usr/libexec/libreguard-vpn-linux/libreguard-ipv6-leak-protection
+MAX_NETWORKMANAGER_ATTEMPTS=20
+MAX_DEACTIVATION_ATTEMPTS=5
+
+if [ ! -x "$NMCLI" ]; then
+    NMCLI="$(command -v nmcli || true)"
+fi
+
+if [ -z "$NMCLI" ] || [ ! -x "$NMCLI" ]; then
+    echo "LibreGuard boot recovery could not find nmcli." >&2
+    exit 127
+fi
+
+is_libreguard_profile() {
+    case "$1" in
+        libreguard-openvpn-*|libreguard-ikev2-*)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+wait_for_networkmanager() {
+    attempt=1
+    while [ "$attempt" -le "$MAX_NETWORKMANAGER_ATTEMPTS" ]; do
+        if "$NMCLI" -t -f NAME,TYPE connection show >/dev/null 2>&1; then
+            return 0
+        fi
+
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+
+    echo "LibreGuard boot recovery could not contact NetworkManager after ${MAX_NETWORKMANAGER_ATTEMPTS} seconds." >&2
+    return 1
+}
+
+list_owned_profiles() {
+    active_only="$1"
+    if [ "$active_only" = yes ]; then
+        connections="$("$NMCLI" -t -f NAME,TYPE connection show --active)" || return 1
+    else
+        connections="$("$NMCLI" -t -f NAME,TYPE connection show)" || return 1
+    fi
+
+    printf '%s\n' "$connections" | while IFS=: read -r name type; do
+        [ "$type" = vpn ] || continue
+        is_libreguard_profile "$name" || continue
+        printf '%s\n' "$name"
+    done
+}
+
+is_absent_or_inactive_error() {
+    printf '%s' "$1" | grep -Eqi 'not[[:space:]]+(an[[:space:]]+)?active|unknown|not found|no active connection'
+}
+
+deactivate_profile() {
+    profile_name="$1"
+    attempt=1
+    while [ "$attempt" -le "$MAX_DEACTIVATION_ATTEMPTS" ]; do
+        result="$("$NMCLI" connection down id "$profile_name" 2>&1)" && return 0
+        if is_absent_or_inactive_error "$result"; then
+            return 0
+        fi
+
+        sleep 1
+        attempt=$((attempt + 1))
+    done
+
+    echo "LibreGuard boot recovery could not deactivate owned VPN profile '$profile_name'." >&2
+    return 1
+}
+
+delete_profile() {
+    profile_name="$1"
+    result="$("$NMCLI" connection delete id "$profile_name" 2>&1)" && return 0
+    if is_absent_or_inactive_error "$result"; then
+        return 0
+    fi
+
+    echo "LibreGuard boot recovery could not delete owned VPN profile '$profile_name'." >&2
+    return 1
+}
+
+wait_for_networkmanager
+
+active_profiles="$(list_owned_profiles yes)" || {
+    echo "LibreGuard boot recovery could not list active NetworkManager connections." >&2
+    exit 1
+}
+
+if [ -n "$active_profiles" ]; then
+    printf '%s\n' "$active_profiles" | while IFS= read -r profile_name; do
+        [ -n "$profile_name" ] || continue
+        deactivate_profile "$profile_name"
+    done
+fi
+
+remaining_active_profiles="$(list_owned_profiles yes)" || {
+    echo "LibreGuard boot recovery could not verify active NetworkManager connections." >&2
+    exit 1
+}
+if [ -n "$remaining_active_profiles" ]; then
+    echo "LibreGuard boot recovery left an owned VPN profile active; refusing DNS cleanup." >&2
+    exit 1
+fi
+
+owned_profiles="$(list_owned_profiles no)" || {
+    echo "LibreGuard boot recovery could not list stored NetworkManager connections." >&2
+    exit 1
+}
+if [ -n "$owned_profiles" ]; then
+    printf '%s\n' "$owned_profiles" | while IFS= read -r profile_name; do
+        [ -n "$profile_name" ] || continue
+        delete_profile "$profile_name"
+    done
+fi
+
+remaining_profiles="$(list_owned_profiles no)" || {
+    echo "LibreGuard boot recovery could not verify stored NetworkManager connections." >&2
+    exit 1
+}
+if [ -n "$remaining_profiles" ]; then
+    echo "LibreGuard boot recovery left an owned VPN profile stored; refusing DNS cleanup." >&2
+    exit 1
+fi
+
+if [ ! -x "$LEAK_PROTECTION_HELPER" ]; then
+    echo "LibreGuard boot recovery could not find the transient leak-protection cleanup helper." >&2
+    exit 1
+fi
+
+if ! "$LEAK_PROTECTION_HELPER" remove; then
+    echo "LibreGuard boot recovery could not remove stale transient leak-protection state." >&2
+    exit 1
+fi
+
+echo "LibreGuard boot recovery completed; no LibreGuard VPN profile remains active or stored." >&2

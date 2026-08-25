@@ -14,6 +14,12 @@ internal static class Program
     {
         LinuxWebViewEnvironment.ConfigureProcessEnvironment();
 
+        if (VpnSessionGuardianCommand.TryHandle(args, out var guardianExitCode))
+        {
+            Environment.ExitCode = guardianExitCode;
+            return;
+        }
+
         if (LinuxGraphicsProbe.TryHandle(args, out var graphicsProbeExitCode))
         {
             Environment.ExitCode = graphicsProbeExitCode;

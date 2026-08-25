@@ -2,16 +2,52 @@ using Libreguard.Vpn.Linux.Models;
 
 namespace Libreguard.Vpn.Linux.Services;
 
-public sealed class VpnConnectionService(
-    IBackendApiClient backend,
-    IAuthSessionService authSession,
-    IEnumerable<IVpnProfileConverter> converters,
-    ILinuxPreflightService preflightService,
-    INetworkManagerClient networkManager,
-    IPublicIpResolver publicIpResolver) : IVpnConnectionService
+public sealed class VpnConnectionService : IVpnConnectionService
 {
-    private readonly Dictionary<VpnProtocol, IVpnProfileConverter> _converters = converters.ToDictionary(converter => converter.Protocol);
+    private readonly IBackendApiClient _backend;
+    private readonly IAuthSessionService _authSession;
+    private readonly ILinuxPreflightService _preflightService;
+    private readonly INetworkManagerClient _networkManager;
+    private readonly IPublicIpResolver _publicIpResolver;
+    private readonly Dictionary<VpnProtocol, IVpnProfileConverter> _converters;
+    private readonly IVpnSessionGuardian _sessionGuardian;
     private VpnStatus _status = new(VpnConnectionState.Disconnected, null, "Disconnected");
+
+    public VpnConnectionService(
+        IBackendApiClient backend,
+        IAuthSessionService authSession,
+        IEnumerable<IVpnProfileConverter> converters,
+        ILinuxPreflightService preflightService,
+        INetworkManagerClient networkManager,
+        IPublicIpResolver publicIpResolver)
+        : this(
+            backend,
+            authSession,
+            converters,
+            preflightService,
+            networkManager,
+            publicIpResolver,
+            NullVpnSessionGuardian.Instance)
+    {
+    }
+
+    internal VpnConnectionService(
+        IBackendApiClient backend,
+        IAuthSessionService authSession,
+        IEnumerable<IVpnProfileConverter> converters,
+        ILinuxPreflightService preflightService,
+        INetworkManagerClient networkManager,
+        IPublicIpResolver publicIpResolver,
+        IVpnSessionGuardian sessionGuardian)
+    {
+        _backend = backend;
+        _authSession = authSession;
+        _converters = converters.ToDictionary(converter => converter.Protocol);
+        _preflightService = preflightService;
+        _networkManager = networkManager;
+        _publicIpResolver = publicIpResolver;
+        _sessionGuardian = sessionGuardian;
+    }
 
     public event EventHandler<VpnStatus>? StatusChanged;
 
@@ -26,22 +62,22 @@ public sealed class VpnConnectionService(
         {
             await CleanupLibreGuardStateAsync(cancellationToken);
 
-            var preflight = await preflightService.CheckAsync(protocol, cancellationToken);
+            var preflight = await _preflightService.CheckAsync(protocol, cancellationToken);
             if (!preflight.IsReady)
             {
                 throw new VpnConfigurationException(preflight.Summary);
             }
 
-            await authSession.EnsureAuthenticatedAsync(cancellationToken);
+            await _authSession.EnsureAuthenticatedAsync(cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
-            var quota = await authSession.ExecuteAuthorizedAsync(backend.CanConnectAsync, cancellationToken);
+            var quota = await _authSession.ExecuteAuthorizedAsync(_backend.CanConnectAsync, cancellationToken);
             if (!quota.CanConnect)
             {
                 throw new VpnConfigurationException(quota.Message ?? "Your current quota does not allow a new VPN connection.");
             }
 
-            var subscription = await authSession.ExecuteAuthorizedAsync(backend.GetSubscriptionStatusAsync, cancellationToken);
+            var subscription = await _authSession.ExecuteAuthorizedAsync(_backend.GetSubscriptionStatusAsync, cancellationToken);
             if (!subscription.IsActive)
             {
                 throw new VpnConfigurationException(subscription.Message ?? "Your subscription is not active.");
@@ -70,6 +106,7 @@ public sealed class VpnConnectionService(
                 throw new VpnConfigurationException("LibreGuard generated an unexpected VPN profile name; refusing to modify network settings.");
             }
             await InstallProfileAsync(profile, cancellationToken);
+            await _sessionGuardian.StartAsync(profile, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
 
             SetStatus(
@@ -79,7 +116,7 @@ public sealed class VpnConnectionService(
                 connectedAt: null,
                 clientPublicIp: resolvedClientIp,
                 serverIp: server.ServerIp);
-            await networkManager.ActivateAsync(profile, cancellationToken);
+            await _networkManager.ActivateAsync(profile, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             SetStatus(
                 VpnConnectionState.Connected,
@@ -157,20 +194,21 @@ public sealed class VpnConnectionService(
     {
         if (profile.Protocol == VpnProtocol.OpenVpn)
         {
-            await networkManager.ImportOpenVpnAsync(profile, cancellationToken);
+            await _networkManager.ImportOpenVpnAsync(profile, cancellationToken);
         }
         else
         {
-            await networkManager.ImportIkeV2Async(profile, cancellationToken);
+            await _networkManager.ImportIkeV2Async(profile, cancellationToken);
         }
     }
 
     private async Task CleanupLibreGuardStateAsync(CancellationToken cancellationToken)
     {
-        await networkManager.EnsureAvailableAsync(cancellationToken);
-        await networkManager.DisconnectLibreGuardProfilesAsync(cancellationToken);
-        await networkManager.DeleteLibreGuardProfilesAsync(excludeProfileName: null, cancellationToken);
-        await networkManager.CleanupLibreGuardArtifactsAsync(excludeProfileName: null, cancellationToken);
+        await _networkManager.EnsureAvailableAsync(cancellationToken);
+        await _networkManager.DisconnectLibreGuardProfilesAsync(cancellationToken);
+        await _networkManager.DeleteLibreGuardProfilesAsync(excludeProfileName: null, cancellationToken);
+        await _networkManager.CleanupLibreGuardArtifactsAsync(excludeProfileName: null, cancellationToken);
+        await _sessionGuardian.CompleteAsync(CancellationToken.None);
     }
 
     private async Task CleanupFailedProfileAsync(string? profileName, CancellationToken cancellationToken)
@@ -181,9 +219,10 @@ public sealed class VpnConnectionService(
             return;
         }
 
-        await networkManager.DeactivateAsync(profileName, cancellationToken);
-        await networkManager.DeleteLibreGuardProfileAsync(profileName, cancellationToken);
-        await networkManager.CleanupLibreGuardProfileArtifactsAsync(profileName, cancellationToken);
+        await _networkManager.DeactivateAsync(profileName, cancellationToken);
+        await _networkManager.DeleteLibreGuardProfileAsync(profileName, cancellationToken);
+        await _networkManager.CleanupLibreGuardProfileArtifactsAsync(profileName, cancellationToken);
+        await _sessionGuardian.CompleteAsync(CancellationToken.None);
     }
 
     private async Task TryCleanupLibreGuardStateAsync(string? profileName)
@@ -201,14 +240,14 @@ public sealed class VpnConnectionService(
     {
         try
         {
-            return await authSession.ExecuteAuthorizedAsync(
-                token => backend.GetVpnConfigAsync(server.Id, protocol, token),
+            return await _authSession.ExecuteAuthorizedAsync(
+                token => _backend.GetVpnConfigAsync(server.Id, protocol, token),
                 cancellationToken);
         }
         catch (BackendApiException ex) when ((int)ex.StatusCode == 404)
         {
-            var request = await authSession.ExecuteAuthorizedAsync(
-                token => backend.RequestCertificateAsync(server.Id, protocol, token),
+            var request = await _authSession.ExecuteAuthorizedAsync(
+                token => _backend.RequestCertificateAsync(server.Id, protocol, token),
                 cancellationToken);
             if (!request.Success || string.IsNullOrWhiteSpace(request.JobIdText))
             {
@@ -216,8 +255,8 @@ public sealed class VpnConnectionService(
             }
 
             await WaitForCertificateAsync(request.JobIdText, cancellationToken);
-            return await authSession.ExecuteAuthorizedAsync(
-                token => backend.GetVpnConfigAsync(server.Id, protocol, token),
+            return await _authSession.ExecuteAuthorizedAsync(
+                token => _backend.GetVpnConfigAsync(server.Id, protocol, token),
                 cancellationToken);
         }
     }
@@ -226,8 +265,8 @@ public sealed class VpnConnectionService(
     {
         for (var attempt = 0; attempt < 40; attempt++)
         {
-            var job = await authSession.ExecuteAuthorizedAsync(
-                token => backend.GetCertificateJobAsync(jobId, token),
+            var job = await _authSession.ExecuteAuthorizedAsync(
+                token => _backend.GetCertificateJobAsync(jobId, token),
                 cancellationToken);
             if (string.Equals(job.Status, "completed", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(job.Status, "success", StringComparison.OrdinalIgnoreCase))
@@ -255,7 +294,7 @@ public sealed class VpnConnectionService(
 
     private async Task<string?> ResolveClientPublicIpAsync(string? fallbackClientIp, CancellationToken cancellationToken)
     {
-        var resolved = await publicIpResolver.ResolveAsync(cancellationToken);
+        var resolved = await _publicIpResolver.ResolveAsync(cancellationToken);
         return !string.IsNullOrWhiteSpace(resolved) ? resolved : fallbackClientIp;
     }
 

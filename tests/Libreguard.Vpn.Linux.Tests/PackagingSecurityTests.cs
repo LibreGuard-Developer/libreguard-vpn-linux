@@ -106,6 +106,31 @@ public sealed class PackagingSecurityTests
     }
 
     [Fact]
+    public void BootRecovery_IsStrictlyScopedToOwnedVpnProfiles()
+    {
+        var root = FindRepositoryRoot();
+        var helper = File.ReadAllText(Path.Combine(root, "packaging", "linux", "helpers", "libreguard-vpn-recovery"));
+        var unit = File.ReadAllText(Path.Combine(root, "packaging", "linux", "systemd", "libreguard-vpn-recovery.service"));
+
+        Assert.Contains("libreguard-openvpn-*|libreguard-ikev2-*", helper);
+        Assert.Contains("-t -f NAME,TYPE connection show --active", helper);
+        Assert.Contains("connection down id", helper);
+        Assert.Contains("connection delete id", helper);
+        Assert.Contains("MAX_NETWORKMANAGER_ATTEMPTS=20", helper);
+        Assert.Contains("LEAK_PROTECTION_HELPER", helper);
+        Assert.Contains("refusing DNS cleanup", helper);
+        Assert.DoesNotContain("resolv.conf", helper, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("resolvectl revert", helper, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("eval ", helper);
+
+        Assert.Contains("After=NetworkManager.service dbus.service", unit);
+        Assert.Contains("Before=network-online.target", unit);
+        Assert.Contains("Type=oneshot", unit);
+        Assert.Contains("libreguard-vpn-recovery", unit);
+        Assert.Contains("WantedBy=multi-user.target", unit);
+    }
+
+    [Fact]
     public void DebianPackage_WiresDispatcherLifecycleAndSafeRemoval()
     {
         var root = FindRepositoryRoot();
@@ -120,9 +145,12 @@ public sealed class PackagingSecurityTests
         var gitAttributes = File.ReadAllText(Path.Combine(root, ".gitattributes"));
 
         Assert.Contains("libreguard-ipv6-leak-protection", project);
+        Assert.Contains("libreguard-vpn-recovery", project);
         Assert.Contains("90-libreguard-vpn-lifecycle", project);
         Assert.Contains("net.libreguard.vpn.linux.repair-ikev2-routing.policy", project);
         Assert.Contains("$ROOT_DIR/packaging/linux/helpers/libreguard-ipv6-leak-protection", buildScript);
+        Assert.Contains("$ROOT_DIR/packaging/linux/helpers/libreguard-vpn-recovery", buildScript);
+        Assert.Contains("$ROOT_DIR/packaging/linux/systemd/libreguard-vpn-recovery.service", buildScript);
         Assert.Contains("/usr/lib/NetworkManager/dispatcher.d/90-libreguard-vpn-lifecycle", buildScript);
         Assert.Contains("/usr/lib/NetworkManager/dispatcher.d/pre-up.d/90-libreguard-vpn-lifecycle", buildScript);
         Assert.Contains("/etc/NetworkManager/dispatcher.d/pre-up.d/90-libreguard-vpn-lifecycle", buildScript);
@@ -136,6 +164,8 @@ public sealed class PackagingSecurityTests
         Assert.True(File.Exists(Path.Combine(root, "packaging", "linux", "polkit", "net.libreguard.vpn.linux.repair-ikev2-routing.policy")));
         Assert.False(File.Exists(Path.Combine(root, "packaging", "linux", "polkit", "net.libreguard.vpn.linux.manage-ipv6-leak-protection.policy")));
         Assert.Contains("IPV6_HELPER_TARGET", installer);
+        Assert.Contains("VPN_RECOVERY_HELPER_TARGET", installer);
+        Assert.Contains("VPN_RECOVERY_SERVICE_TARGET", installer);
         Assert.Contains("DISPATCHER_TARGET", installer);
         Assert.Contains("PRE_UP_DISPATCHER_TARGET", installer);
         Assert.Contains("SYSTEM_PRE_UP_DISPATCHER_TARGET", installer);
@@ -154,8 +184,11 @@ public sealed class PackagingSecurityTests
         Assert.Contains("exit 1", preRemove);
         Assert.Contains("cleanup_stale_leak_protection", postInstall);
         Assert.Contains("\"$LEAK_PROTECTION_HELPER\" remove", postInstall);
+        Assert.Contains("systemctl enable libreguard-vpn-recovery.service", postInstall);
+        Assert.Contains("systemctl disable libreguard-vpn-recovery.service", preRemove);
         Assert.Contains("packaging/linux/helpers/* text eol=lf", gitAttributes);
         Assert.Contains("packaging/linux/dispatcher/* text eol=lf", gitAttributes);
+        Assert.Contains("packaging/linux/systemd/* text eol=lf", gitAttributes);
         Assert.Contains("packaging/linux/deb/prerm text eol=lf", gitAttributes);
     }
 
@@ -328,6 +361,8 @@ public sealed class PackagingSecurityTests
         Assert.Contains("/opt/libreguard-vpn-linux", spec);
         Assert.Contains("/usr/libexec/libreguard-vpn-linux/libreguard-ikev2-route-repair", spec);
         Assert.Contains("%attr(0755,root,root) /usr/libexec/libreguard-vpn-linux/libreguard-ipv6-leak-protection", spec);
+        Assert.Contains("%attr(0755,root,root) /usr/libexec/libreguard-vpn-linux/libreguard-vpn-recovery", spec);
+        Assert.Contains("%attr(0644,root,root) /usr/lib/systemd/system/libreguard-vpn-recovery.service", spec);
         Assert.Contains("%attr(0755,root,root) /usr/lib/NetworkManager/dispatcher.d/90-libreguard-vpn-lifecycle", spec);
         Assert.Contains("%attr(0755,root,root) /usr/lib/NetworkManager/dispatcher.d/pre-up.d/90-libreguard-vpn-lifecycle", spec);
         Assert.Contains("%attr(0755,root,root) /etc/NetworkManager/dispatcher.d/pre-up.d/90-libreguard-vpn-lifecycle", spec);
@@ -335,6 +370,7 @@ public sealed class PackagingSecurityTests
         Assert.Contains("%post", spec);
         Assert.Contains("semodule -i /usr/share/selinux/packages/libreguard/libreguard_ikev2_fedora.cil", spec);
         Assert.Contains("\"$leak_protection_helper\" remove >/dev/null 2>&1 || true", spec);
+        Assert.Contains("systemctl enable libreguard-vpn-recovery.service", spec);
         Assert.Contains("/etc/netplan/01-network-manager-all.yaml", spec);
         Assert.Contains("chown root:root", spec);
         Assert.Contains("chmod 0600", spec);
@@ -344,6 +380,7 @@ public sealed class PackagingSecurityTests
         Assert.Contains("semodule -r libreguard_ikev2_fedora", spec);
         Assert.Contains("leak_protection_helper=\"/usr/libexec/libreguard-vpn-linux/libreguard-ipv6-leak-protection\"", spec);
         Assert.Contains("\"$leak_protection_helper\" remove", spec);
+        Assert.Contains("systemctl disable libreguard-vpn-recovery.service", spec);
         Assert.Contains("browser DNS leak-protection state", spec);
         Assert.Contains("X-LibreGuard-ManagedShortcut=true", spec);
 
