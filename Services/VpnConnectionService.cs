@@ -60,7 +60,8 @@ public sealed class VpnConnectionService : IVpnConnectionService
         SetStatus(VpnConnectionState.Preparing, null, "Checking account and preparing VPN profile...");
         try
         {
-            await CleanupLibreGuardStateAsync(cancellationToken);
+            await _sessionGuardian.PrepareConnectionAsync(cancellationToken);
+            await CleanupLibreGuardStateAsync(cancellationToken, completeGuardian: false);
 
             var preflight = await _preflightService.CheckAsync(protocol, cancellationToken);
             if (!preflight.IsReady)
@@ -202,13 +203,16 @@ public sealed class VpnConnectionService : IVpnConnectionService
         }
     }
 
-    private async Task CleanupLibreGuardStateAsync(CancellationToken cancellationToken)
+    private async Task CleanupLibreGuardStateAsync(CancellationToken cancellationToken, bool completeGuardian = true)
     {
         await _networkManager.EnsureAvailableAsync(cancellationToken);
         await _networkManager.DisconnectLibreGuardProfilesAsync(cancellationToken);
         await _networkManager.DeleteLibreGuardProfilesAsync(excludeProfileName: null, cancellationToken);
         await _networkManager.CleanupLibreGuardArtifactsAsync(excludeProfileName: null, cancellationToken);
-        await _sessionGuardian.CompleteAsync(CancellationToken.None);
+        if (completeGuardian)
+        {
+            await _sessionGuardian.CompleteAsync(CancellationToken.None);
+        }
     }
 
     private async Task CleanupFailedProfileAsync(string? profileName, CancellationToken cancellationToken)

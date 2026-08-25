@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Libreguard.Vpn.Linux.Models;
 
 namespace Libreguard.Vpn.Linux.Services;
@@ -12,6 +13,7 @@ namespace Libreguard.Vpn.Linux.Services;
 /// </summary>
 internal interface IVpnSessionGuardian
 {
+    Task PrepareConnectionAsync(CancellationToken cancellationToken) => Task.CompletedTask;
     Task StartAsync(VpnProfile profile, CancellationToken cancellationToken);
     Task CompleteAsync(CancellationToken cancellationToken);
 }
@@ -31,11 +33,13 @@ internal sealed class VpnSessionGuardian : IVpnSessionGuardian
     internal const string NonceArgument = "--nonce";
     private static readonly TimeSpan StartTimeout = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan ReadyPollInterval = TimeSpan.FromMilliseconds(100);
+    internal const string LifecycleLockFileName = "vpn-lifecycle.lock";
 
     private readonly IProcessRunner _processRunner;
     private readonly Action<string> _diagnosticSink;
     private readonly string _executablePath;
     private readonly string _runtimeDirectory;
+    private FileStream? _lifecycleLock;
     private GuardianLeaseHandle? _activeLease;
 
     public VpnSessionGuardian(IProcessRunner processRunner)
@@ -78,15 +82,20 @@ internal sealed class VpnSessionGuardian : IVpnSessionGuardian
             throw new VpnConfigurationException("LibreGuard requires Linux systemd user services to protect VPN DNS cleanup.");
         }
 
-        Directory.CreateDirectory(_runtimeDirectory);
-        SetOwnerOnlyMode(_runtimeDirectory, isDirectory: true);
+        if (_lifecycleLock is null)
+        {
+            throw new VpnConfigurationException("LibreGuard must acquire the VPN lifecycle lock before installing a guarded connection.");
+        }
 
         var nonce = Guid.NewGuid().ToString("N");
         var leasePath = Path.Combine(_runtimeDirectory, $"vpn-session-{nonce}.json");
         var readyPath = leasePath + ".ready";
         var unitName = $"libreguard-vpn-guardian-{nonce}";
+        var connectionUuid = await GetConnectionUuidAsync(profile.ProfileName, cancellationToken)
+            ?? throw new VpnConfigurationException("LibreGuard could not read the newly installed NetworkManager profile identity. The VPN was not activated.");
         var lease = new VpnSessionLease(
             profile.ProfileName,
+            connectionUuid,
             Environment.ProcessId,
             Process.GetCurrentProcess().StartTime.ToUniversalTime().Ticks,
             nonce,
@@ -126,14 +135,39 @@ internal sealed class VpnSessionGuardian : IVpnSessionGuardian
         {
             TryDelete(leasePath);
             TryDelete(readyPath);
+            ReleaseLifecycleLock();
             throw new VpnConfigurationException("LibreGuard could not verify the VPN lifecycle guardian before activation.");
         }
         catch
         {
             TryDelete(leasePath);
             TryDelete(readyPath);
+            ReleaseLifecycleLock();
             throw;
         }
+    }
+
+    public async Task PrepareConnectionAsync(CancellationToken cancellationToken)
+    {
+        if (_lifecycleLock is not null)
+        {
+            return;
+        }
+
+        if (!OperatingSystem.IsLinux())
+        {
+            throw new VpnConfigurationException("LibreGuard requires Linux systemd user services to protect VPN DNS cleanup.");
+        }
+
+        Directory.CreateDirectory(_runtimeDirectory);
+        SetOwnerOnlyMode(_runtimeDirectory, isDirectory: true);
+        var lifecycleLock = await TryAcquireLifecycleLockAsync(_runtimeDirectory, StartTimeout, cancellationToken);
+        if (lifecycleLock is null)
+        {
+            throw new VpnConfigurationException("LibreGuard could not acquire the VPN lifecycle lock. Wait a few seconds and try connecting again.");
+        }
+
+        _lifecycleLock = lifecycleLock;
     }
 
     public async Task CompleteAsync(CancellationToken cancellationToken)
@@ -141,12 +175,14 @@ internal sealed class VpnSessionGuardian : IVpnSessionGuardian
         var activeLease = _activeLease;
         if (activeLease is null)
         {
+            ReleaseLifecycleLock();
             return;
         }
 
         var completedLease = activeLease.Lease with { Completed = true };
         await WriteLeaseAsync(activeLease.LeasePath, completedLease, cancellationToken);
         _activeLease = null;
+        ReleaseLifecycleLock();
         _diagnosticSink($"vpn-session-guardian-completed profile=\"{Redact(completedLease.ProfileName)}\" unit=\"{activeLease.UnitName}\"");
     }
 
@@ -223,8 +259,61 @@ internal sealed class VpnSessionGuardian : IVpnSessionGuardian
         }
     }
 
+    internal static async Task<FileStream?> TryAcquireLifecycleLockAsync(
+        string runtimeDirectory,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            return null;
+        }
+
+        var lockPath = Path.Combine(runtimeDirectory, LifecycleLockFileName);
+        var deadline = DateTimeOffset.UtcNow + timeout;
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            FileStream? stream = null;
+            try
+            {
+                stream = new FileStream(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.ReadWrite);
+                SetOwnerOnlyMode(lockPath, isDirectory: false);
+#pragma warning disable CA1416 // The method returns before this point on non-Linux platforms.
+                stream.Lock(0, 1);
+#pragma warning restore CA1416
+                return stream;
+            }
+            catch (IOException)
+            {
+                stream?.Dispose();
+                if (DateTimeOffset.UtcNow >= deadline)
+                {
+                    return null;
+                }
+
+                await Task.Delay(ReadyPollInterval, cancellationToken);
+            }
+        }
+    }
+
+    private void ReleaseLifecycleLock()
+    {
+        _lifecycleLock?.Dispose();
+        _lifecycleLock = null;
+    }
+
     private static string Redact(string value)
         => value.Replace('"', '_').Replace('\r', '_').Replace('\n', '_');
+
+    private async Task<string?> GetConnectionUuidAsync(string profileName, CancellationToken cancellationToken)
+    {
+        var result = await _processRunner.RunAsync(
+            "nmcli",
+            ["-g", "connection.uuid", "connection", "show", profileName],
+            cancellationToken);
+        return VpnSessionGuardianCommand.ReadConnectionUuid(profileName, result);
+    }
 
     private sealed record GuardianLeaseHandle(
         string LeasePath,
@@ -300,7 +389,7 @@ internal static class VpnSessionGuardianCommand
             }
             catch (FileNotFoundException)
             {
-                return await CleanUpUnexpectedExitAsync(lease.ProfileName, leasePath);
+                return await CleanUpUnexpectedExitAsync(lease.ProfileName, lease.ConnectionUuid, leasePath);
             }
             catch (Exception exception) when (exception is IOException or JsonException or UnauthorizedAccessException)
             {
@@ -323,36 +412,83 @@ internal static class VpnSessionGuardianCommand
 
             if (!IsParentAlive(currentLease.ParentProcessId, currentLease.ParentStartUtcTicks))
             {
-                return await CleanUpUnexpectedExitAsync(currentLease.ProfileName, leasePath);
+                return await CleanUpUnexpectedExitAsync(currentLease.ProfileName, currentLease.ConnectionUuid, leasePath);
             }
 
             await Task.Delay(ParentPollInterval);
         }
     }
 
-    private static async Task<int> CleanUpUnexpectedExitAsync(string profileName, string leasePath)
+    private static async Task<int> CleanUpUnexpectedExitAsync(
+        string profileName,
+        string connectionUuid,
+        string leasePath)
     {
         using var cleanupCts = new CancellationTokenSource(CleanupTimeout);
-        return await CleanUpUnexpectedExitAsync(
-            profileName,
-            leasePath,
-            new NetworkManagerClient(new ProcessRunner()),
-            cleanupCts.Token);
+        try
+        {
+            var runtimeDirectory = Path.GetDirectoryName(leasePath);
+            if (string.IsNullOrWhiteSpace(runtimeDirectory))
+            {
+                return 68;
+            }
+
+            using var lifecycleLock = await VpnSessionGuardian.TryAcquireLifecycleLockAsync(
+                runtimeDirectory,
+                CleanupTimeout,
+                cleanupCts.Token);
+            if (lifecycleLock is null)
+            {
+                VpnSessionGuardian.TryDelete(leasePath);
+                VpnSessionGuardian.TryDelete(leasePath + ".ready");
+                StartupDiagnostics.Log($"vpn-session-guardian-cleanup-skipped profile=\"{Redact(profileName)}\" reason=lifecycle-lock-busy");
+                return 0;
+            }
+
+            var uuidResult = await new ProcessRunner().RunAsync(
+                "nmcli",
+                ["-g", "connection.uuid", "connection", "show", profileName],
+                cleanupCts.Token);
+            var currentConnectionUuid = ReadConnectionUuid(profileName, uuidResult);
+            return await CleanUpUnexpectedExitAsync(
+                profileName,
+                connectionUuid,
+                currentConnectionUuid,
+                leasePath,
+                new NetworkManagerClient(new ProcessRunner()),
+                cleanupCts.Token);
+        }
+        catch (Exception exception)
+        {
+            StartupDiagnostics.Log($"vpn-session-guardian-cleanup-failed profile=\"{Redact(profileName)}\" type={exception.GetType().Name}");
+            return 68;
+        }
     }
 
     internal static async Task<int> CleanUpUnexpectedExitAsync(
         string profileName,
+        string expectedConnectionUuid,
+        string? currentConnectionUuid,
         string leasePath,
         INetworkManagerClient networkManager,
         CancellationToken cancellationToken)
     {
-        if (!IsLibreGuardVpnProfile(profileName))
+        if (!IsLibreGuardVpnProfile(profileName)
+            || !IsCanonicalUuid(expectedConnectionUuid))
         {
             StartupDiagnostics.Log("vpn-session-guardian-cleanup-refused reason=unowned-profile");
             return 65;
         }
 
         ArgumentNullException.ThrowIfNull(networkManager);
+        if (!string.Equals(expectedConnectionUuid, currentConnectionUuid, StringComparison.OrdinalIgnoreCase))
+        {
+            VpnSessionGuardian.TryDelete(leasePath);
+            VpnSessionGuardian.TryDelete(leasePath + ".ready");
+            StartupDiagnostics.Log($"vpn-session-guardian-cleanup-skipped profile=\"{Redact(profileName)}\" reason=profile-instance-changed");
+            return 0;
+        }
+
         StartupDiagnostics.Log($"vpn-session-guardian-cleanup-begin profile=\"{Redact(profileName)}\"");
         try
         {
@@ -414,10 +550,37 @@ internal static class VpnSessionGuardianCommand
 
     private static bool IsValidLease(VpnSessionLease lease, string nonce)
         => IsLibreGuardVpnProfile(lease.ProfileName)
+            && IsCanonicalUuid(lease.ConnectionUuid)
             && lease.ParentProcessId > 0
             && lease.ParentStartUtcTicks > 0
             && string.Equals(lease.Nonce, nonce, StringComparison.Ordinal)
             && Guid.TryParseExact(lease.Nonce, "N", out _);
+
+    internal static string? ReadConnectionUuid(string profileName, ProcessResult result)
+    {
+        if (!result.Success)
+        {
+            if (Regex.IsMatch(result.StandardError, "unknown|not found", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            {
+                return null;
+            }
+
+            throw new VpnConfigurationException($"NetworkManager could not read the profile identity for {profileName}.");
+        }
+
+        var uuid = result.StandardOutput
+            .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .FirstOrDefault();
+        if (!IsCanonicalUuid(uuid))
+        {
+            throw new VpnConfigurationException($"NetworkManager returned an invalid profile identity for {profileName}.");
+        }
+
+        return Guid.Parse(uuid!).ToString("D");
+    }
+
+    private static bool IsCanonicalUuid(string? value)
+        => !string.IsNullOrWhiteSpace(value) && Guid.TryParseExact(value, "D", out _);
 
     private static string Redact(string value)
         => value.Replace('"', '_').Replace('\r', '_').Replace('\n', '_');
@@ -425,6 +588,7 @@ internal static class VpnSessionGuardianCommand
 
 internal sealed record VpnSessionLease(
     string ProfileName,
+    string ConnectionUuid,
     int ParentProcessId,
     long ParentStartUtcTicks,
     string Nonce,

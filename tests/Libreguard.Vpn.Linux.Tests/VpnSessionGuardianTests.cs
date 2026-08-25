@@ -53,6 +53,7 @@ public sealed class VpnSessionGuardianTests
         {
             var lease = new VpnSessionLease(
                 "libreguard-openvpn-nl-1",
+                Guid.NewGuid().ToString("D"),
                 Environment.ProcessId,
                 Process.GetCurrentProcess().StartTime.ToUniversalTime().Ticks,
                 Guid.NewGuid().ToString("N"),
@@ -97,9 +98,12 @@ public sealed class VpnSessionGuardianTests
         try
         {
             var networkManager = new RecordingNetworkManager();
+            var connectionUuid = Guid.NewGuid().ToString("D");
 
             var result = await VpnSessionGuardianCommand.CleanUpUnexpectedExitAsync(
                 "libreguard-openvpn-nl-1",
+                connectionUuid,
+                connectionUuid,
                 leasePath,
                 networkManager,
                 CancellationToken.None);
@@ -124,15 +128,50 @@ public sealed class VpnSessionGuardianTests
     public async Task UnexpectedExitCleanup_RefusesThirdPartyProfiles()
     {
         var networkManager = new RecordingNetworkManager();
+        var connectionUuid = Guid.NewGuid().ToString("D");
 
         var result = await VpnSessionGuardianCommand.CleanUpUnexpectedExitAsync(
             "corp-vpn",
+            connectionUuid,
+            connectionUuid,
             Path.Combine(Path.GetTempPath(), "libreguard-unused-lease"),
             networkManager,
             CancellationToken.None);
 
         Assert.Equal(65, result);
         Assert.Empty(networkManager.Events);
+    }
+
+    [Fact]
+    public async Task UnexpectedExitCleanup_DoesNotTouchARecreatedProfile()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+        var leasePath = Path.Combine(directory, "vpn-session.json");
+        Directory.CreateDirectory(directory);
+        await File.WriteAllTextAsync(leasePath, "lease");
+        try
+        {
+            var networkManager = new RecordingNetworkManager();
+
+            var result = await VpnSessionGuardianCommand.CleanUpUnexpectedExitAsync(
+                "libreguard-ikev2-de-multi-1-3",
+                Guid.NewGuid().ToString("D"),
+                Guid.NewGuid().ToString("D"),
+                leasePath,
+                networkManager,
+                CancellationToken.None);
+
+            Assert.Equal(0, result);
+            Assert.Empty(networkManager.Events);
+            Assert.False(File.Exists(leasePath));
+        }
+        finally
+        {
+            if (Directory.Exists(directory))
+            {
+                Directory.Delete(directory, recursive: true);
+            }
+        }
     }
 
     private sealed class RecordingNetworkManager : INetworkManagerClient

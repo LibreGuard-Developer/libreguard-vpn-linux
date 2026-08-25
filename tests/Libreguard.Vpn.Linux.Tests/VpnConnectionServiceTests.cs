@@ -136,6 +136,24 @@ public sealed class VpnConnectionServiceTests
     }
 
     [Fact]
+    public async Task ConnectAsync_AcquiresTheGuardianLifecycleLockBeforeClearingOrImportingProfiles()
+    {
+        var backend = CreateReadyBackend();
+        var network = new FakeNetworkManager();
+        var guardian = new FakeSessionGuardian(network.LifecycleEvents);
+        var service = CreateService(backend, network, guardian: guardian);
+
+        await service.ConnectAsync(backend.Server, VpnProtocol.Ikev2, CancellationToken.None);
+
+        var prepareIndex = network.LifecycleEvents.IndexOf("guardian-prepare");
+        var cleanupIndex = network.LifecycleEvents.IndexOf("cleanup-artifacts");
+        var importIndex = network.LifecycleEvents.IndexOf("import");
+        Assert.True(prepareIndex >= 0);
+        Assert.True(prepareIndex < cleanupIndex);
+        Assert.True(cleanupIndex < importIndex);
+    }
+
+    [Fact]
     public async Task DisconnectAsync_CleansLibreGuardStateWithoutActiveInMemoryProfile()
     {
         var backend = CreateReadyBackend();
@@ -493,6 +511,12 @@ public sealed class VpnConnectionServiceTests
         private bool _active;
         public List<string> StartedProfiles { get; } = [];
         public int CompleteCalls { get; private set; }
+
+        public Task PrepareConnectionAsync(CancellationToken cancellationToken)
+        {
+            lifecycleEvents.Add("guardian-prepare");
+            return Task.CompletedTask;
+        }
 
         public Task StartAsync(VpnProfile profile, CancellationToken cancellationToken)
         {
