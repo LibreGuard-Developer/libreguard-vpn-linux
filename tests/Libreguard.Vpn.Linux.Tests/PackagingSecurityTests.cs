@@ -131,6 +131,22 @@ public sealed class PackagingSecurityTests
     }
 
     [Fact]
+    public void LinuxTerminalSignals_RunTheSameBoundedVpnCleanupAsProcessExit()
+    {
+        var root = FindRepositoryRoot();
+        var app = File.ReadAllText(Path.Combine(root, "App.axaml.cs"));
+
+        Assert.Contains("PosixSignal.SIGINT", app);
+        Assert.Contains("TryCleanupVpnState(\"signal-int\")", app);
+        Assert.Contains("PosixSignal.SIGHUP", app);
+        Assert.Contains("TryCleanupVpnState(\"signal-hup\")", app);
+        Assert.Contains("TryCleanupVpnState(\"signal-term\")", app);
+        Assert.Contains("TryCleanupVpnState(\"process-exit\")", app);
+        Assert.Contains("CancellationTokenSource(TimeSpan.FromSeconds(5))", app);
+        Assert.Contains("Interlocked.Exchange(ref _vpnExitCleanupStarted, 1)", app);
+    }
+
+    [Fact]
     public void DebianPackage_WiresDispatcherLifecycleAndSafeRemoval()
     {
         var root = FindRepositoryRoot();

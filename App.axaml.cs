@@ -22,7 +22,10 @@ public sealed partial class App : Application
     private TrayIcons? _trayIcons;
     private TrayIcon? _trayIcon;
     private MainViewModel? _trayViewModel;
+    private PosixSignalRegistration? _sigIntRegistration;
     private PosixSignalRegistration? _sigTermRegistration;
+    private PosixSignalRegistration? _sigHupRegistration;
+    private int _vpnExitCleanupStarted;
 
     public override void Initialize()
     {
@@ -337,16 +340,18 @@ public sealed partial class App : Application
         AppDomain.CurrentDomain.ProcessExit += HandleProcessExit;
         if (OperatingSystem.IsLinux())
         {
-            _sigTermRegistration = PosixSignalRegistration.Create(PosixSignal.SIGTERM, _ => TryCleanupVpnState());
+            _sigIntRegistration = PosixSignalRegistration.Create(PosixSignal.SIGINT, _ => TryCleanupVpnState("signal-int"));
+            _sigTermRegistration = PosixSignalRegistration.Create(PosixSignal.SIGTERM, _ => TryCleanupVpnState("signal-term"));
+            _sigHupRegistration = PosixSignalRegistration.Create(PosixSignal.SIGHUP, _ => TryCleanupVpnState("signal-hup"));
         }
     }
 
     private void HandleProcessExit(object? sender, EventArgs e)
-        => TryCleanupVpnState();
+        => TryCleanupVpnState("process-exit");
 
-    private void TryCleanupVpnState()
+    private void TryCleanupVpnState(string reason)
     {
-        if (_services is null)
+        if (_services is null || Interlocked.Exchange(ref _vpnExitCleanupStarted, 1) != 0)
         {
             return;
         }
@@ -354,16 +359,16 @@ public sealed partial class App : Application
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            StartupDiagnostics.Log("vpn-cleanup-begin");
+            StartupDiagnostics.Log($"vpn-cleanup-begin reason=\"{reason}\"");
             _services.GetRequiredService<IVpnConnectionService>()
                 .ShutdownAsync(cts.Token)
                 .GetAwaiter()
                 .GetResult();
-            StartupDiagnostics.Log("vpn-cleanup-complete");
+            StartupDiagnostics.Log($"vpn-cleanup-complete reason=\"{reason}\"");
         }
         catch (Exception ex)
         {
-            StartupDiagnostics.Log($"vpn-cleanup-failed type={ex.GetType().Name}");
+            StartupDiagnostics.Log($"vpn-cleanup-failed reason=\"{reason}\" type={ex.GetType().Name}");
         }
     }
 

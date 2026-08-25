@@ -373,6 +373,7 @@ internal static class VpnSessionGuardianCommand
         {
             await File.WriteAllTextAsync(leasePath + ".ready", nonce);
             VpnSessionGuardian.SetOwnerOnlyMode(leasePath + ".ready", isDirectory: false);
+            StartupDiagnostics.Log($"vpn-session-guardian-ready profile=\"{Redact(lease.ProfileName)}\" parent_pid={lease.ParentProcessId}");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -412,6 +413,7 @@ internal static class VpnSessionGuardianCommand
 
             if (!IsParentAlive(currentLease.ParentProcessId, currentLease.ParentStartUtcTicks))
             {
+                StartupDiagnostics.Log($"vpn-session-guardian-parent-exited profile=\"{Redact(currentLease.ProfileName)}\" parent_pid={currentLease.ParentProcessId}");
                 return await CleanUpUnexpectedExitAsync(currentLease.ProfileName, currentLease.ConnectionUuid, leasePath);
             }
 
