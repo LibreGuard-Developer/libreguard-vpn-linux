@@ -402,12 +402,6 @@ public sealed class CompositeSecretStore : ISecretStore
 
     public async Task DeleteAsync(string key, CancellationToken cancellationToken)
     {
-        if (UsesFallback)
-        {
-            await _fallback.DeleteAsync(key, cancellationToken);
-            return;
-        }
-
         Exception? firstFailure = null;
         try
         {
@@ -416,7 +410,10 @@ public sealed class CompositeSecretStore : ISecretStore
         catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
         {
             firstFailure = ex;
-            await SwitchToFallbackAsync(cancellationToken);
+            if (!UsesFallback)
+            {
+                await SwitchToFallbackAsync(cancellationToken);
+            }
         }
 
         try
@@ -430,8 +427,16 @@ public sealed class CompositeSecretStore : ISecretStore
                 firstFailure ?? ex);
         }
 
-        // A successful fallback deletion is sufficient after Secret Service
-        // failed; the file store is now the selected authoritative backend.
+        if (firstFailure is not null)
+        {
+            // Reads and writes deliberately honor the persisted fallback choice,
+            // but deletion is different: a session may have been stored in
+            // Secret Service before the fallback was selected. Do not report a
+            // successful logout while that primary copy could not be removed.
+            throw new InvalidOperationException(
+                "The primary secret store could not delete the requested secret.",
+                firstFailure);
+        }
     }
 
     private bool UsesFallback => Volatile.Read(ref _useFallback) != 0;

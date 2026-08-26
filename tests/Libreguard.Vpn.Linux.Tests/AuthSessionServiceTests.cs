@@ -251,6 +251,23 @@ public sealed class AuthSessionServiceTests
         Assert.Null(service.CurrentSession);
     }
 
+    [Fact]
+    public async Task ClearSessionAsync_RemovesRefreshTokenFromPrimaryAfterFallbackWasSelected()
+    {
+        var backend = new FakeBackend();
+        var primary = new InMemorySecretStore();
+        var fallback = new InMemorySecretStore();
+        await primary.SetAsync("refresh-token", "keyring-refresh", CancellationToken.None);
+        await fallback.SetAsync("refresh-token", "file-refresh", CancellationToken.None);
+        var secrets = new CompositeSecretStore(primary, fallback, preferFallback: true);
+        var service = new AuthSessionService(backend, new FakeDeviceIdentityService(), secrets);
+
+        await service.ClearSessionAsync(CancellationToken.None);
+
+        Assert.Null(await primary.GetAsync("refresh-token", CancellationToken.None));
+        Assert.Null(await fallback.GetAsync("refresh-token", CancellationToken.None));
+    }
+
     private sealed class FakeBackend : IBackendApiClient
     {
         public Func<string?, Task<TokenCheckResponse>> CheckTokenHandler { get; set; } = _ => Task.FromResult(new TokenCheckResponse { IsValid = false });

@@ -5,7 +5,7 @@ namespace Libreguard.Vpn.Linux.Tests;
 public sealed class CompositeSecretStoreTests
 {
     [Fact]
-    public async Task PreferredFallback_DoesNotProbeUnavailableKeyring()
+    public async Task PreferredFallback_DoesNotProbeUnavailableKeyringForReadsAndWrites()
     {
         var primary = new RecordingSecretStore { ThrowOnEveryOperation = true };
         var fallback = new RecordingSecretStore();
@@ -14,12 +14,42 @@ public sealed class CompositeSecretStoreTests
 
         var value = await store.GetAsync("jwt-token", CancellationToken.None);
         await store.SetAsync("refresh-token", "file-refresh", CancellationToken.None);
-        await store.DeleteAsync("jwt-token", CancellationToken.None);
 
         Assert.Equal("file-token", value);
         Assert.Empty(primary.Operations);
         Assert.Equal("file-refresh", fallback.Values["refresh-token"]);
-        Assert.DoesNotContain("jwt-token", fallback.Values.Keys);
+        Assert.Equal("file-token", fallback.Values["jwt-token"]);
+    }
+
+    [Fact]
+    public async Task PreferredFallback_DeleteRemovesCopiesFromPrimaryAndFallback()
+    {
+        var primary = new RecordingSecretStore();
+        var fallback = new RecordingSecretStore();
+        primary.Values["refresh-token"] = "keyring-refresh";
+        fallback.Values["refresh-token"] = "file-refresh";
+        var store = new CompositeSecretStore(primary, fallback, preferFallback: true);
+
+        await store.DeleteAsync("refresh-token", CancellationToken.None);
+
+        Assert.DoesNotContain("refresh-token", primary.Values.Keys);
+        Assert.DoesNotContain("refresh-token", fallback.Values.Keys);
+        Assert.Contains("delete:refresh-token", primary.Operations);
+        Assert.Contains("delete:refresh-token", fallback.Operations);
+    }
+
+    [Fact]
+    public async Task PreferredFallback_DeleteReportsUnavailablePrimaryAfterClearingFallback()
+    {
+        var primary = new RecordingSecretStore { ThrowOnEveryOperation = true };
+        var fallback = new RecordingSecretStore();
+        fallback.Values["refresh-token"] = "file-refresh";
+        var store = new CompositeSecretStore(primary, fallback, preferFallback: true);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => store.DeleteAsync("refresh-token", CancellationToken.None));
+
+        Assert.DoesNotContain("refresh-token", fallback.Values.Keys);
+        Assert.Equal(["delete:refresh-token"], primary.Operations);
     }
 
     [Fact]

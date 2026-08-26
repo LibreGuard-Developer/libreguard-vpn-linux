@@ -1,6 +1,12 @@
-# LibreGuard VPN Linux
+<p align="center">
+  <img src="Resources/LibreGuard_logo.png" alt="LibreGuard logo" width="160">
+</p>
 
-LibreGuard VPN Linux is an open-source Linux client for the LibreGuard VPN service. It provides a desktop interface with support for IKEv2 and OpenVPN® connections.
+<h1 align="center">LibreGuard VPN Linux</h1>
+
+<p align="center">An open-source Linux client for the LibreGuard VPN service.</p>
+
+LibreGuard VPN Linux provides a desktop interface with support for IKEv2 and OpenVPN® connections.
 
 ## Features
 
@@ -58,6 +64,14 @@ Release builds may require a public Google OAuth client ID supplied through the 
 ## Contributing
 
 Issues and pull requests are welcome. Please describe problems and proposed changes clearly, keep pull requests focused, and include relevant tests. For substantial changes, open an issue first so the community can discuss the approach.
+
+## License and notices
+
+Copyright © 2026 LibreGuard d.o.o.
+
+LibreGuard VPN Linux is licensed under the [GNU General Public License v2.0 or later](LICENSE). See [COPYING](COPYING) for the project license declaration.
+
+OpenVPN® is a registered trademark of OpenVPN Inc.
 
 ## Security
 
