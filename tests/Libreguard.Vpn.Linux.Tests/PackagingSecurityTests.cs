@@ -277,6 +277,7 @@ public sealed class PackagingSecurityTests
         Assert.Contains("Depends:", control);
         Assert.Contains("libwebkit2gtk-4.1-0", control);
         Assert.Contains("libxtst6", control);
+        Assert.Contains("ca-certificates", control);
         Assert.Contains("fonts-noto-color-emoji", control);
         Assert.Contains("Recommends: libwpewebkit-2.0-1", control);
         Assert.Contains("xdg-utils", control);

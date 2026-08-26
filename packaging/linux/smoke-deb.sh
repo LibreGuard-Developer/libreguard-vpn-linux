@@ -70,6 +70,7 @@ if command -v sudo >/dev/null 2>&1 && command -v apt-get >/dev/null 2>&1; then
     echo "No supported native WebView runtime was installed." >&2
     exit 1
   fi
+  dpkg -s ca-certificates
   dpkg -s xdg-utils
   dpkg -s gnome-keyring
   dpkg -s libpam-gnome-keyring
